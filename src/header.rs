@@ -128,6 +128,52 @@ impl fmt::Show for HeaderMap {
     }
 }
 
+impl FromStr for HeaderMap {
+    fn from_str(s: &str) -> Option<HeaderMap> {
+        #[deriving(PartialEq, Eq)]
+        enum State {
+            SeenCr,
+            SeenLf,
+            Awaiting,
+        }
+
+        let mut start = 0u;
+        let mut pos = 0u;
+        let mut state = Awaiting;
+        let mut header_map = HeaderMap::new();
+
+        while pos < s.len() {
+            let c = s.char_range_at(pos);
+            state = match c.ch {
+                '\r' => SeenCr,
+                '\n' if state == SeenCr => SeenLf,
+                '\t' | ' ' if state == SeenLf => Awaiting,
+                _ if state == SeenLf => {
+                    let header = from_str(s.slice_chars(start, pos));
+                    if header.is_none() {
+                        return None
+                    }
+                    header_map.insert(header.unwrap());
+                    // Move the next slice on
+                    start = pos;
+                    Awaiting
+                },
+                _ => Awaiting
+            };
+            pos = c.next;
+        }
+
+        // Handle the final header
+        let final_header = from_str(s.slice_from(start));
+        if final_header.is_none() {
+            None
+        } else {
+            header_map.insert(final_header.unwrap());
+            Some(header_map)
+        }
+    }
+}
+
 impl Collection for HeaderMap {
     fn len(&self) -> uint {
         self.iter().count()
@@ -227,10 +273,29 @@ mod tests {
         }
         let result = headers.to_string();
         let slice = result.as_slice();
-        println!("{}", result);
         assert!(slice.contains("Test: Value\r\n"));
         assert!(slice.contains("Test: Value 2\r\n"));
         assert!(slice.contains("Test-2: Value 3\r\n"));
         assert!(slice.contains("Test-Multiline: Foo\r\n\tBar"));
+    }
+
+    #[test]
+    fn test_header_map_parse() {
+        let headers = from_str::<HeaderMap>("Test: Value\r\nTest: Value 2\r\nTest-2: Value 3\r\nTest-Multiline: Foo\r\n\tBar\r\n").unwrap();
+        println!("{}", headers);
+        assert_eq!(headers.len(), 4);
+        assert_eq!(
+            headers.find(&"Test".to_string()).unwrap(), &vec![
+                Header::new("Test".to_string(), "Value".to_string()),
+                Header::new("Test".to_string(), "Value 2".to_string()),
+        ]);
+        assert_eq!(
+            headers.find(&"Test-2".to_string()).unwrap(), &vec![
+                Header::new("Test-2".to_string(), "Value 3".to_string()),
+        ]);
+        assert_eq!(
+            headers.find(&"Test-Multiline".to_string()).unwrap(), &vec![
+                Header::new("Test-Multiline".to_string(), "Foo\r\n\tBar".to_string()),
+        ]);
     }
 }
