@@ -1,3 +1,7 @@
 #![feature(globs)]
+#![experimental]
 
-pub mod header;
+pub use header::{Header, HeaderMap, FromHeader};
+
+pub mod utils;
+mod header;
