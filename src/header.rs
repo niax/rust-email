@@ -118,7 +118,13 @@ impl HeaderMap {
 
 impl fmt::Show for HeaderMap {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.headers)
+        for header in self.iter() {
+            match write!(fmt, "{}\r\n", header) {
+                Err(e) => return Err(e),
+                _ => {}
+            }
+        }
+        Ok(())
     }
 }
 
@@ -210,5 +216,21 @@ mod tests {
         }
         // And that there is the right number of them
         assert_eq!(count, expected_headers.len());
+    }
+
+    #[test]
+    fn test_header_map_string() {
+        let mut headers = HeaderMap::new();
+        for &val in SAMPLE_HEADERS.iter() {
+            let header: Header = from_str(val).unwrap();
+            headers.insert(header.clone());
+        }
+        let result = headers.to_string();
+        let slice = result.as_slice();
+        println!("{}", result);
+        assert!(slice.contains("Test: Value\r\n"));
+        assert!(slice.contains("Test: Value 2\r\n"));
+        assert!(slice.contains("Test-2: Value 3\r\n"));
+        assert!(slice.contains("Test-Multiline: Foo\r\n\tBar"));
     }
 }
