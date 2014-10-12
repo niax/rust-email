@@ -112,9 +112,22 @@ impl<'s> AddressParser<'s> {
         let mut result = Vec::new();
 
         while !self.p.eof() {
-            match self.parse_mailbox() {
-                Some(mailbox) => result.push(AddressMailbox(mailbox)),
-                None => {},
+            self.p.push_position();
+
+            let mut entry = self.parse_group();
+
+            if entry.is_none() {
+                // If we failed to parse as group, try again as mailbox
+                self.p.pop_position();
+
+                entry = match self.parse_mailbox() {
+                    Some(mailbox) => Some(AddressMailbox(mailbox)),
+                    None => None,
+                }
+            }
+
+            if entry.is_some() {
+                result.push(entry.unwrap());
             }
 
             self.p.consume_linear_whitespace();
@@ -125,6 +138,33 @@ impl<'s> AddressParser<'s> {
         }
 
         result
+    }
+
+    pub fn parse_group(&mut self) -> Option<Address> {
+        let mut mailboxes = Vec::new();
+        let name = self.p.consume_phrase(false);
+
+        if name.is_some() {
+            if !self.p.eof() && self.p.peek() != ':' {
+                None
+            } else {
+                self.p.consume_char();
+                while !self.p.eof() && self.p.peek() != ';' {
+                    match self.parse_mailbox() {
+                        Some(mbox) => mailboxes.push(mbox),
+                        None => {},
+                    }
+
+                    if !self.p.eof() && self.p.peek() == ',' {
+                        self.p.consume_char();
+                    }
+                }
+
+                Some(AddressGroup(name.unwrap(), mailboxes))
+            }
+        } else {
+            None
+        }
     }
 
     pub fn parse_mailbox(&mut self) -> Option<Mailbox> {
@@ -226,11 +266,49 @@ mod tests {
     }
 
     #[test]
+    fn test_address_group_to_string() {
+        let addr = Address::group("undisclosed recipients".to_string(), vec![]);
+        assert_eq!(addr.to_string(), "undisclosed recipients: ".to_string());
+
+        let addr = Address::group("group test".to_string(), vec![
+            Mailbox::new("joe@example.org".to_string()),
+            Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ]);
+        assert_eq!(addr.to_string(), "group test: <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
+    }
+
+    #[test]
+    fn test_address_group_parsing() {
+        let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>,john@example.org;");
+        let addr = parser.parse_group().unwrap();
+        match addr {
+            AddressGroup(name, mboxes) => {
+                assert_eq!(name, "A Group".to_string());
+                assert_eq!(mboxes, vec![
+                    Mailbox::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+                    Mailbox::new("john@example.org".to_string()),
+                ]);
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_address_list_parsing() {
         let mut parser = AddressParser::new("\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>");
         assert_eq!(parser.parse_address_list(), vec![
             Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
             Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ]);
+
+        let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>; <third@example.org>, <fourth@example.org>");
+        assert_eq!(parser.parse_address_list(), vec![
+            Address::group("A Group".to_string(), vec![
+                    Mailbox::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+                    Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            ]),
+            Address::mailbox("third@example.org".to_string()),
+            Address::mailbox("fourth@example.org".to_string()),
         ]);
     }
 
@@ -246,15 +324,4 @@ mod tests {
         ]);
     }
 
-    #[test]
-    fn test_address_group_to_string() {
-        let addr = Address::group("undisclosed recipients".to_string(), vec![]);
-        assert_eq!(addr.to_string(), "undisclosed recipients: ".to_string());
-
-        let addr = Address::group("group test".to_string(), vec![
-            Mailbox::new("joe@example.org".to_string()),
-            Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
-        ]);
-        assert_eq!(addr.to_string(), "group test: <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
-    }
 }
