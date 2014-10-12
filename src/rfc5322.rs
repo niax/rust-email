@@ -116,7 +116,11 @@ impl<'s> Rfc5322Parser<'s> {
             }
         }
 
-        Some(phrase)
+        if phrase.len() > 0 {
+            Some(phrase)
+        } else {
+            None
+        }
     }
 
     /// Consume a quoted string from the input
