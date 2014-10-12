@@ -10,6 +10,8 @@ use super::header::FromHeader;
 pub enum Address {
     /// A "regular" email address
     AddressMailbox(Mailbox),
+    /// A named group of mailboxes
+    AddressGroup(String, Vec<Mailbox>),
 }
 
 impl Address {
@@ -22,12 +24,27 @@ impl Address {
     pub fn mailbox_with_name(name: String, address: String) -> Address {
         AddressMailbox(Mailbox::new_with_name(name, address))
     }
+
+    pub fn group(name: String, mailboxes: Vec<Mailbox>) -> Address {
+        AddressGroup(name, mailboxes)
+    }
 }
 
 impl fmt::Show for Address {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             AddressMailbox(ref mbox) => mbox.fmt(fmt),
+            AddressGroup(ref name, ref mboxes) => {
+                let mut mailbox_list = String::new();
+                for mbox in mboxes.iter() {
+                    if mailbox_list.len() > 0 {
+                        // Insert the separator if there's already things in this list
+                        mailbox_list.push_str(", ");
+                    }
+                    mailbox_list.push_str(mbox.to_string().as_slice());
+                }
+                write!(fmt, "{}: {}", name, mailbox_list)
+            }
         }
     }
 }
@@ -227,5 +244,17 @@ mod tests {
             Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
             Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
+    }
+
+    #[test]
+    fn test_address_group_to_string() {
+        let addr = Address::group("undisclosed recipients".to_string(), vec![]);
+        assert_eq!(addr.to_string(), "undisclosed recipients: ".to_string());
+
+        let addr = Address::group("group test".to_string(), vec![
+            Mailbox::new("joe@example.org".to_string()),
+            Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ]);
+        assert_eq!(addr.to_string(), "group test: <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
     }
 }
