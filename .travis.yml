@@ -1,2 +1,14 @@
 language: rust
 rust: nightly
+
+env:
+    global:
+        - secure: Q8O1N7AVByO+PA28udXp36nDe9AbO8Kp/D9fqgr9LorGTNybDBGXJqd7qpkWzONJ3r6iZSXpkD9Iev7qsMfjO8bDNStLLgfHR3elSjDFW8fhjijNfuMuyfGCmOsGDekmAB0HZzmkN3xk3V76EDAFcM2YGocSHNXJmluDB7uMsIw=
+
+script:
+    - cargo build -v
+    - cargo test -v
+    - cargo doc
+
+after_script:
+    - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
