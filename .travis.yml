@@ -3,7 +3,7 @@ rust: nightly
 
 env:
     global:
-        - secure: Q8O1N7AVByO+PA28udXp36nDe9AbO8Kp/D9fqgr9LorGTNybDBGXJqd7qpkWzONJ3r6iZSXpkD9Iev7qsMfjO8bDNStLLgfHR3elSjDFW8fhjijNfuMuyfGCmOsGDekmAB0HZzmkN3xk3V76EDAFcM2YGocSHNXJmluDB7uMsIw=
+        - secure: I4WPZjTaIGzkYLG4SfPM5xonXGtJaagWgU9Nodw3+5qNZ4wLWK+hWFU4G4leApDnT0n+2Og6T29/Hbq81DfZFC9uWy5EPXOBcdOD9Ge4Cktap2b1ciPXbK1smq2O0W20Z0kRyvNJ57Hgt7tR4DhE6NrecR+Sp+BUlAyeyv7VG2g=
 
 script:
     - cargo build -v
@@ -11,4 +11,4 @@ script:
     - cargo doc
 
 after_script:
-    - cd target && curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh -x
+    - cd target && curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh 
