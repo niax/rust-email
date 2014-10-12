@@ -2,8 +2,10 @@ use std::fmt;
 use std::from_str::FromStr;
 
 use super::rfc5322::Rfc5322Parser;
+use super::header::FromHeader;
 
 /// Represents an RFC 822 address
+#[deriving(PartialEq, Eq)]
 pub struct Address {
     /// The given name for this address
     pub name: Option<String>,
@@ -44,6 +46,12 @@ impl FromStr for Address {
     }
 }
 
+impl FromHeader for Vec<Address> {
+    fn from_header(value: String) -> Option<Vec<Address>> {
+        Some(AddressParser::new(value.as_slice()).parse_address_list())
+    }
+}
+
 pub struct AddressParser<'s> {
     p: Rfc5322Parser<'s>,
 }
@@ -53,6 +61,25 @@ impl<'s> AddressParser<'s> {
         AddressParser {
             p: Rfc5322Parser::new(s)
         }
+    }
+
+    pub fn parse_address_list(&mut self) -> Vec<Address> {
+        let mut result = Vec::new();
+
+        while !self.p.eof() {
+            match self.parse_mailbox() {
+                Some(mailbox) => result.push(mailbox),
+                None => {},
+            }
+
+            self.p.consume_linear_whitespace();
+            if !self.p.eof() && self.p.peek() == ',' {
+                // Clear the separator
+                self.p.consume_char();
+            }
+        }
+
+        result
     }
 
     pub fn parse_mailbox(&mut self) -> Option<Address> {
@@ -120,6 +147,8 @@ impl<'s> AddressParser<'s> {
 mod tests {
     use super::*;
 
+    use super::super::header::Header;
+
     #[test]
     fn test_address_to_string() {
         let addr = Address::new("foo@example.org".to_string());
@@ -149,5 +178,26 @@ mod tests {
         addr = parser.parse_mailbox().unwrap();
         assert_eq!(addr.name, None);
         assert_eq!(addr.address, "joe@example.org".to_string());
+    }
+
+    #[test]
+    fn test_address_list_parsing() {
+        let mut parser = AddressParser::new("\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>");
+        assert_eq!(parser.parse_address_list(), vec![
+            Address::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ]);
+    }
+
+    #[test]
+    fn test_from_header_parsing() {
+        let header = Header::new(
+            "From:".to_string(),
+            "\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
+        let addresses: Vec<Address> = header.get_value().unwrap();
+        assert_eq!(addresses, vec![
+            Address::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ]);
     }
 }

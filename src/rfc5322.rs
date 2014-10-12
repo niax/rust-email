@@ -89,7 +89,6 @@ impl<'s> Rfc5322Parser<'s> {
                 // in a phrase, so stop.
                 break
             };
-            println!("{}", word);
 
             if word.is_some() {
                 // Unwrap word so it lives long enough...
