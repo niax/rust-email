@@ -5,4 +5,4 @@ rust-mime
 
 Rust implementation of RFC 822 messages.
 
-[Documentation](http://niax.github.io/rust-mime/mime/index.html)
+[Documentation](http://www.rust-ci.org/niax/rust-mime/doc/mime/)
