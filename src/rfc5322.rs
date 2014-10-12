@@ -1,5 +1,7 @@
 //! Module with helpers for dealing with RFC 5322
 
+use super::rfc2047::decode_rfc2047;
+
 trait Rfc5322Character {
     /// Is considered a special character by RFC 5322 Section 3.2.3
     fn is_special(&self) -> bool;
@@ -13,7 +15,7 @@ trait Rfc5322Character {
 impl Rfc5322Character for char {
     fn is_special(&self) -> bool {
         match *self {
-            '(' | ')' | '<' | '>' | '[' | ']' | ':' | ';' | '@' | '\\' | ',' | '.' | '\"' => true,
+            '(' | ')' | '<' | '>' | '[' | ']' | ':' | ';' | '@' | '\\' | ',' | '.' | '\"' | ' ' => true,
             _ => false
         }
     }
@@ -87,9 +89,29 @@ impl<'s> Rfc5322Parser<'s> {
                 // in a phrase, so stop.
                 break
             };
+            println!("{}", word);
 
             if word.is_some() {
-                phrase.push_str(word.unwrap().as_slice());
+                // Unwrap word so it lives long enough...
+                // XXX: word in this scope is `String`, in the parent scope, is `Option<String>`
+                let word = word.unwrap();
+                let w_slice = word.as_slice();
+                // RFC 2047 encoded words start with =?, end with ?=
+                let decoded_word =
+                    if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
+                        match decode_rfc2047(w_slice) {
+                            Some(w) => w,
+                            None => w_slice.to_string(),
+                        }
+                    } else {
+                        w_slice.to_string()
+                    };
+                
+                // Make sure we put a leading space on, if this isn't the first insertion
+                if phrase.len() > 0 {
+                    phrase.push_str(" ");
+                }
+                phrase.push_str(decoded_word.as_slice());
             } else {
                 return None
             }
@@ -204,28 +226,56 @@ impl<'s> Rfc5322Parser<'s> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_simple_qstring() {
-        let mut p = Rfc5322Parser::new("\"test phrase\"");
-        assert_eq!(p.consume_phrase(false).unwrap(), "test phrase".to_string());
-
+    struct PhraseTestCase<'s> {
+        input: &'s str,
+        output: &'s str,
+        name: &'s str,
     }
 
     #[test]
-    fn test_escaped_qstring() {
-        let mut p = Rfc5322Parser::new("\"test \\\"phrase\\\"\"");
-        assert_eq!(p.consume_phrase(false).unwrap(), "test \"phrase\"".to_string());
-    }
+    fn test_consume_phrase() {
+        let tests = [
+            PhraseTestCase {
+                input: "\"test phrase\"", output: "test phrase",
+                name: "Simple quoted-string"
+            },
+            PhraseTestCase {
+                input: "\"test \\\"phrase\\\"\"", output: "test \"phrase\"",
+                name: "quoted-string with escape character"
+            },
+            PhraseTestCase {
+                input: "\"=?utf-8?q?encoded=20q-string?=\"", output: "encoded q-string",
+                name: "Encoded quoted-string"
+            },
+            PhraseTestCase {
+                input: "atom test", output: "atom test",
+                name: "Collection of atoms"
+            },
+            PhraseTestCase {
+                input: "=?utf-8?q?encoded=20atom?=", output: "encoded atom",
+                name: "Encoded atom"
+            },
+            PhraseTestCase {
+                input: "Mix of atoms \"and quoted strings\"", output: "Mix of atoms and quoted strings",
+                name: "Mix of atoms and quoted strings"
+            },
+            PhraseTestCase {
+                input: "=?utf-8?q?encoded=20atoms?= mixed with \"unencoded\" \"=?utf-8?b?YW5kIGVuY29kZWQgcS1zdHJpbmdz?=\"",
+                output: "encoded atoms mixed with unencoded and encoded q-strings",
+                name: "Mix of atoms, q-strings of differing encodings"
+            },
+            PhraseTestCase {
+                input: "\"John Smith\" <test@example.org>", output: "John Smith",
+                name: "Stop consuming phrase at \"special\" character",
+            }
+        ];
 
-    #[test]
-    fn test_multiple_words() {
-        let mut p = Rfc5322Parser::new("atom words with \"quoted string words too\"");
-        assert_eq!(p.consume_phrase(false).unwrap(), "atom words with quoted string words too".to_string());
-    }
-
-    #[test]
-    fn test_sample_address() {
-        let mut p = Rfc5322Parser::new("\"John Smith\" <test@example.org>");
-        assert_eq!(p.consume_phrase(false).unwrap(), "John Smith".to_string());
+        for t in tests.iter() {
+            let mut p = Rfc5322Parser::new(t.input);
+            let phrase = p.consume_phrase(false);
+            assert!(phrase.is_some(), format!("{} returned Some", t.name));
+            let test_name = format!("{} == {} for {}", phrase.clone().unwrap(), t.output, t.name);
+            assert!(phrase.unwrap() == t.output.to_string(), test_name);
+        }
     }
 }
