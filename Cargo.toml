@@ -3,3 +3,6 @@
 name = "mime"
 version = "0.0.1"
 authors = ["Nicholas Hollett <niax@niax.co.uk>"]
+
+[dependencies.encoding]
+git = "https://github.com/lifthrasiir/rust-encoding.git"

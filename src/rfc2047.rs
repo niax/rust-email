@@ -4,12 +4,13 @@ use std::ascii::AsciiExt;
 use std::num::from_str_radix;
 use serialize::base64::FromBase64;
 
+use encoding::label::encoding_from_whatwg_label;
+use encoding::DecodeReplace;
+
 /// Decode an RFC 2047 string (`s`) into a Rust String.
 ///
 /// Will accept either "Q" encoding (RFC 2047 Section 4.2) or
 /// "B" encoding (BASE64)
-///
-/// Note that this only supports UTF-8 as a charset for the time being.
 pub fn decode_rfc2047(s: &str) -> Option<String> {
     let parts: Vec<&str> = s.split('?').collect();
     if parts.len() != 5 || parts[0] != "=" || parts[4] != "=" {
@@ -25,10 +26,15 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
             _ => fail!("Unknown encoding type"),
         };
 
-        match bytes {
-            // TODO: Actually consider charset
-            Ok(b) => Some(String::from_utf8(b).unwrap()),
-            Err(_) => None,
+        // XXX: Relies on WHATWG labels, rather than MIME labels for
+        // charset. Consider adding mapping upstream.
+        let decoder = encoding_from_whatwg_label(charset.as_slice());
+
+        match (bytes, decoder) {
+            (Ok(b), Some(d)) => {
+                d.decode(b.as_slice(), DecodeReplace).ok()
+            }
+            _ => None,
         }
     }
 }
@@ -89,6 +95,10 @@ mod tests {
                 input: "=?ISO-8859-1?b?VGVzdCB0ZXh0?=", 
                 output: "Test text"
             },
+            DecodeTest {
+                input: "=?utf-8?b?44GT44KT44Gr44Gh44Gv44CC?=",
+                output: "こんにちは。"
+            },
         ];
 
         for t in tests.iter() {
@@ -103,6 +113,8 @@ mod tests {
             "=?ISO-8859-1?b?-?=",
             // Not valid RFC 2047
             "=?Doesn't end with equals",
+            // Unknown charset
+            "=?NOCHARSET?q?foo?=",
         ];
 
         for t in tests.iter() {
