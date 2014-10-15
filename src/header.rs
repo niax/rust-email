@@ -1,5 +1,4 @@
 use std::fmt;
-use std::from_str::FromStr;
 use std::collections::HashMap;
 use std::collections::hashmap::{Occupied, Vacant};
 use std::slice::Items;
@@ -62,26 +61,6 @@ impl fmt::Show for Header {
     }
 }
 
-impl FromStr for Header {
-    fn from_str(s: &str) -> Option<Header> {
-        // Split the header on the first semicolon
-        let mut parts = s.splitn(2, ':');
-        let before = parts.next();
-        let after = parts.next();
-
-        match (before, after) {
-            // If either value is None, then this isn't a header
-            (None, None) | (_, None) | (None, _) => None,
-            (Some(ref name), Some(ref value)) => {
-                Some(Header::new(
-                    name.trim().to_string(),
-                    value.trim().to_string()
-                ))
-            }
-        }
-    }
-}
-
 /// A collection of Headers
 pub struct HeaderMap {
     headers: HashMap<String, Vec<Header>>,
@@ -114,6 +93,15 @@ impl HeaderMap {
         }
         MultiIter::new(iters)
     }
+
+    /// Get the last value of the header
+    pub fn get(&self, name: String) -> Option<&Header> {
+        match self.headers.find(&name) {
+            Some(values) => values.last(),
+            None => None,
+        }
+    }
+
 }
 
 impl fmt::Show for HeaderMap {
@@ -125,52 +113,6 @@ impl fmt::Show for HeaderMap {
             }
         }
         Ok(())
-    }
-}
-
-impl FromStr for HeaderMap {
-    fn from_str(s: &str) -> Option<HeaderMap> {
-        #[deriving(PartialEq, Eq)]
-        enum State {
-            SeenCr,
-            SeenLf,
-            Awaiting,
-        }
-
-        let mut start = 0u;
-        let mut pos = 0u;
-        let mut state = Awaiting;
-        let mut header_map = HeaderMap::new();
-
-        while pos < s.len() {
-            let c = s.char_range_at(pos);
-            state = match c.ch {
-                '\r' => SeenCr,
-                '\n' if state == SeenCr => SeenLf,
-                '\t' | ' ' if state == SeenLf => Awaiting,
-                _ if state == SeenLf => {
-                    let header = from_str(s.slice_chars(start, pos));
-                    if header.is_none() {
-                        return None
-                    }
-                    header_map.insert(header.unwrap());
-                    // Move the next slice on
-                    start = pos;
-                    Awaiting
-                },
-                _ => Awaiting
-            };
-            pos = c.next;
-        }
-
-        // Handle the final header
-        let final_header = from_str(s.slice_from(start));
-        if final_header.is_none() {
-            None
-        } else {
-            header_map.insert(final_header.unwrap());
-            Some(header_map)
-        }
     }
 }
 
@@ -191,12 +133,19 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    static SAMPLE_HEADERS: [&'static str, ..4] = [
-        "Test: Value",
-        "Test : Value 2",
-        "Test-2: Value 3",
-        "Test-Multiline: Foo\nBar",
+    static SAMPLE_HEADERS: [(&'static str, &'static str), ..4] = [
+        ("Test", "Value"),
+        ("Test", "Value 2"),
+        ("Test-2", "Value 3"),
+        ("Test-Multiline", "Foo\nBar"),
     ];
+
+    fn make_sample_headers() -> Vec<Header> {
+        SAMPLE_HEADERS.iter().map(|&(name, value)| {
+            Header::new(name.to_string(), value.to_string())
+        }).collect()
+    }
+
 
     #[test]
     fn test_header_to_string() {
@@ -218,38 +167,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_header() {
-        let vals = ["Test: Value", "Test : Value"];
-        for &val in vals.iter() {
-            let header: Header = from_str(val).unwrap();
-            assert_eq!(header.name, "Test".to_string());
-            assert_eq!(header.value, "Value".to_string());
-        }
-    }
-
-    #[test]
-    fn test_parse_header_roundtrip() {
-        let header: Header = from_str("Test: Value").unwrap();
-        let header_string = header.to_string();
-        assert_eq!(header_string, "Test: Value".to_string());
-    }
-
-    #[test]
     fn test_header_map_len() {
         let mut headers = HeaderMap::new();
-        for (i, &val) in SAMPLE_HEADERS.iter().enumerate() {
-            let header: Header = from_str(val).unwrap();
+        for (i, header) in make_sample_headers().into_iter().enumerate() {
             headers.insert(header);
             assert_eq!(headers.len(), i + 1);
         }
     }
-
     #[test]
     fn test_header_map_iter() {
         let mut headers = HeaderMap::new();
         let mut expected_headers = HashSet::new();
-        for &val in SAMPLE_HEADERS.iter() {
-            let header: Header = from_str(val).unwrap();
+        for header in make_sample_headers().into_iter() {
             headers.insert(header.clone());
             expected_headers.insert(header);
         }
@@ -267,9 +196,8 @@ mod tests {
     #[test]
     fn test_header_map_string() {
         let mut headers = HeaderMap::new();
-        for &val in SAMPLE_HEADERS.iter() {
-            let header: Header = from_str(val).unwrap();
-            headers.insert(header.clone());
+        for header in make_sample_headers().into_iter() {
+            headers.insert(header);
         }
         let result = headers.to_string();
         let slice = result.as_slice();
@@ -277,25 +205,5 @@ mod tests {
         assert!(slice.contains("Test: Value 2\r\n"));
         assert!(slice.contains("Test-2: Value 3\r\n"));
         assert!(slice.contains("Test-Multiline: Foo\r\n\tBar"));
-    }
-
-    #[test]
-    fn test_header_map_parse() {
-        let headers = from_str::<HeaderMap>("Test: Value\r\nTest: Value 2\r\nTest-2: Value 3\r\nTest-Multiline: Foo\r\n\tBar\r\n").unwrap();
-        println!("{}", headers);
-        assert_eq!(headers.len(), 4);
-        assert_eq!(
-            headers.find(&"Test".to_string()).unwrap(), &vec![
-                Header::new("Test".to_string(), "Value".to_string()),
-                Header::new("Test".to_string(), "Value 2".to_string()),
-        ]);
-        assert_eq!(
-            headers.find(&"Test-2".to_string()).unwrap(), &vec![
-                Header::new("Test-2".to_string(), "Value 3".to_string()),
-        ]);
-        assert_eq!(
-            headers.find(&"Test-Multiline".to_string()).unwrap(), &vec![
-                Header::new("Test-Multiline".to_string(), "Foo\r\n\tBar".to_string()),
-        ]);
     }
 }
