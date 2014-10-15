@@ -41,7 +41,7 @@ impl Rfc5322Character for char {
 }
 
 /// RFC 5322 base parser for parsing
-///  `atom`, `dot-atom`, `quoted-string`, `phrase`
+///  `atom`, `dot-atom`, `quoted-string`, `phrase`, `message`
 ///
 /// This should prove useful for parsing other things that appear in RFC 5322,
 /// as most are based off these core items.
@@ -117,7 +117,7 @@ impl<'s> Rfc5322Parser<'s> {
     ///
     /// `ftext = "!".."9" / ";".."~"
     /// field-name = 1*ftext
-    /// field = field-name *LWSP ":" unstructured
+    /// field = field-name *LWSP ":" unstructured`
     pub fn consume_header(&mut self) -> Option<Header> {
         // Parse field-name
         let field_name = self.consume_while(|c| { c.is_ftext() });
