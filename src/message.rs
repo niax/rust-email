@@ -41,6 +41,54 @@ pub struct MimeMessageData {
     pub body: String
 }
 
+/// Marks the type of a multipart message
+#[deriving(Eq,PartialEq,Show)]
+pub enum MimeMultipartType {
+    /// Entries which are independent.
+    ///
+    /// This value is the default.
+    ///
+    /// As defined by Section 5.1.3 of RFC 2046
+    MimeMultipartMixed,
+    /// Entries which are interchangeable, such that the system can choose
+    /// whichever is "best" for its use.
+    ///
+    /// As defined by Section 5.1.4 of RFC 2046
+    MimeMultipartAlternate,
+    /// Entries are (typically) a collection of messages.
+    ///
+    /// As defined by Section 5.1.5 of RFC 2046
+    MimeMultipartDigest,
+    /// Entry order does not matter, and could be displayed simultaneously.
+    ///
+    /// As defined by Section 5.1.6 of RFC 2046
+    MimeMultipartParallel,
+}
+
+impl MimeMultipartType {
+    /// Returns the appropriate `MimeMultipartType` for the given MimeContentType
+    pub fn from_content_type(ct: MimeContentType) -> MimeMultipartType {
+        let (major, minor) = ct;
+        match (major.as_slice(), minor.as_slice()) {
+            ("multipart", "alternate") => MimeMultipartAlternate,
+            ("multipart", "digest") => MimeMultipartDigest,
+            ("multipart", "parallel") => MimeMultipartParallel,
+            ("multipart", "mixed") | ("multipart", _) => MimeMultipartMixed,
+            _ => fail!("ContentType is not multipart"),
+        }
+    }
+
+    pub fn to_content_type(&self) -> MimeContentType {
+        let multipart = "multipart".to_string();
+        match *self {
+            MimeMultipartMixed => (multipart, "mixed".to_string()),
+            MimeMultipartAlternate => (multipart, "alternate".to_string()),
+            MimeMultipartDigest => (multipart, "digest".to_string()),
+            MimeMultipartParallel => (multipart, "parallel".to_string()),
+        }
+    }
+}
+
 /// Enum type over the different types of multipart message.
 #[deriving(Show)]
 pub enum MimeMessage {
@@ -48,7 +96,7 @@ pub enum MimeMessage {
     ///
     /// The `body` of MimeMessageData is the content of the message between
     /// the final header and the first boundary.
-    MimeMultipart(MimeMessageData, Vec<MimeMessage>),
+    MimeMultipart(MimeMessageData, MimeMultipartType, Vec<MimeMessage>),
     /// A simple non-multipart message.
     MimeNonMultipart(MimeMessageData),
 }
@@ -57,7 +105,7 @@ impl MimeMessage {
     /// Get a reference to the headers for this message.
     pub fn headers(&self) -> &HeaderMap {
         match *self {
-            MimeMultipart(ref data, _) => &data.headers,
+            MimeMultipart(ref data, _, _) => &data.headers,
             MimeNonMultipart(ref data) => &data.headers,
         }
     }
@@ -82,7 +130,7 @@ impl MimeMessage {
         } else {
             let content_type = content_type.unwrap();
             // Pull out the major mime type and the boundary (if it exists)
-            let (mime_type, _) = content_type.content_type;
+            let (mime_type, sub_mime_type) = content_type.content_type;
             let boundary = content_type.params.find(&"boundary".to_string());
 
             let message = match mime_type.as_slice() {
@@ -105,7 +153,8 @@ impl MimeMessage {
                         headers: headers,
                         body: body,
                     };
-                    MimeMultipart(data, message_parts)
+                    let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type));
+                    MimeMultipart(data, multipart_type, message_parts)
                 },
                 _ => {
                     // Boring message, bung the headers & body together and return.
@@ -188,7 +237,7 @@ mod tests {
             }
 
             match (&self.children, other) {
-                (&Some(ref our_messages), &MimeMultipart(ref data, ref other_messages)) => {
+                (&Some(ref our_messages), &MimeMultipart(ref data, _, ref other_messages)) => {
                     let mut children_match = true;
                     for (index, child) in our_messages.iter().enumerate() {
                         if !child.equiv(&other_messages[index]) {
@@ -298,5 +347,27 @@ mod tests {
             };
             assert!(result, test.name);
         }
+    }
+
+    #[test]
+    fn test_multipart_type_type_parsing() {
+        let multipart = "multipart".to_string();
+        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "mixed".to_string())), MimeMultipartMixed);
+        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "alternate".to_string())), MimeMultipartAlternate);
+        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "digest".to_string())), MimeMultipartDigest);
+        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "parallel".to_string())), MimeMultipartParallel);
+
+        // Test failback onto multipart/mixed
+        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "potato".to_string())), MimeMultipartMixed);
+    }
+
+    #[test]
+    fn test_multipart_type_to_content_type() {
+        let multipart = "multipart".to_string();
+
+        assert_eq!(MimeMultipartMixed.to_content_type(),     (multipart.clone(), "mixed".to_string()));
+        assert_eq!(MimeMultipartAlternate.to_content_type(), (multipart.clone(), "alternate".to_string()));
+        assert_eq!(MimeMultipartDigest.to_content_type(),    (multipart.clone(), "digest".to_string()));
+        assert_eq!(MimeMultipartParallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
     }
 }
