@@ -62,6 +62,7 @@ impl fmt::Show for Header {
 }
 
 /// A collection of Headers
+#[deriving(Eq,PartialEq)]
 pub struct HeaderMap {
     headers: HashMap<String, Vec<Header>>,
 }

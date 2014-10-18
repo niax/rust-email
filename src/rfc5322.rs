@@ -93,14 +93,16 @@ impl<'s> Rfc5322Parser<'s> {
             let header = self.consume_header();
             if header.is_some() {
                 headers.insert(header.unwrap());
-            }
+            } else {
+                // Check end of headers as marked by CRLF
+                if !self.eof() && self.peek() == '\r' {
+                    assert_eq!(self.consume_char(), '\r');
+                    assert_eq!(self.consume_char(), '\n');
+                }
 
-            // Check end of headers as marked by CRLF
-            if !self.eof() && self.peek() == '\r' {
-                assert_eq!(self.consume_char(), '\r');
-                assert_eq!(self.consume_char(), '\n');
                 break;
             }
+
         }
 
 
@@ -119,12 +121,14 @@ impl<'s> Rfc5322Parser<'s> {
     /// field-name = 1*ftext
     /// field = field-name *LWSP ":" unstructured`
     pub fn consume_header(&mut self) -> Option<Header> {
+        let last_pos = self.pos;
         // Parse field-name
         let field_name = self.consume_while(|c| { c.is_ftext() });
         self.consume_linear_whitespace();
         if field_name.len() == 0 || self.eof() || self.peek() != ':' {
             // Fail to parse if we didn't see a field, we're at the end of input
             // or we haven't just seen a ":"
+            self.pos = last_pos;
             None
         } else {
             // Consume the ":" and any leading whitespace
@@ -190,12 +194,31 @@ impl<'s> Rfc5322Parser<'s> {
         is_fws
     }
 
+    /// Consume a word from the input.
+    ///
+    /// A word is defined as:
+    ///
+    /// `word = atom / quoted-string`
+    ///
+    /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
+    pub fn consume_word(&mut self, allow_dot_atom: bool) -> Option<String> {
+        if self.peek() == '"' {
+            // Word is a quoted string
+            self.consume_quoted_string()
+        } else if self.peek().is_atext() {
+            // Word is an atom.
+            self.consume_atom(allow_dot_atom)
+        } else {
+            // Is not a word!
+            None
+        }
+    }
+
     /// Consume a phrase from the input.
     ///
     /// A phrase is defined as:
     ///
-    /// `word = atom / quoted-string
-    /// phrase = 1*word`
+    /// `phrase = 1*word`
     ///
     /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
     pub fn consume_phrase(&mut self, allow_dot_atom: bool) -> Option<String> {

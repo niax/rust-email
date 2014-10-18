@@ -1,0 +1,297 @@
+use super::header::{FromHeader,HeaderMap};
+use super::rfc5322::Rfc5322Parser;
+use super::rfc2045::Rfc2045Parser;
+
+use std::collections::HashMap;
+
+/// Content-Type string, major/minor as the first and second elements
+/// respectively.
+pub type MimeContentType = (String, String);
+
+/// Special header type for the Content-Type header.
+pub struct MimeContentTypeHeader {
+    pub content_type: MimeContentType,
+    pub params: HashMap<String, String>,
+}
+
+impl FromHeader for MimeContentTypeHeader {
+    fn from_header(value: String) -> Option<MimeContentTypeHeader> {
+        let mut parser = Rfc2045Parser::new(value.as_slice());
+        let (value, params) = parser.consume_all();
+
+        let mime_parts: Vec<&str> = value.as_slice().splitn(2, '/').collect();
+
+        if mime_parts.len() == 2 {
+            Some(MimeContentTypeHeader {
+                content_type: (mime_parts[0].to_string(), mime_parts[1].to_string()),
+                params: params
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Represents the common data of a MIME message
+#[deriving(Show)]
+pub struct MimeMessageData {
+    /// The headers for this message
+    pub headers: HeaderMap,
+    /// The content of this message
+    pub body: String
+}
+
+/// Enum type over the different types of multipart message.
+#[deriving(Show)]
+pub enum MimeMessage {
+    MimeMultipart(MimeMessageData, Vec<MimeMessage>),
+    MimeNonMultipart(MimeMessageData),
+}
+
+impl MimeMessage {
+    /// Get a reference to the headers for this message.
+    pub fn headers(&self) -> &HeaderMap {
+        match *self {
+            MimeMultipart(ref data, _) => &data.headers,
+            MimeNonMultipart(ref data) => &data.headers,
+        }
+    }
+
+    // Make a message from a header map and body, parsing out any multi-part
+    // messages that are discovered by looking at the Content-Type header.
+    fn from_headers(headers: HeaderMap, body: String) -> Option<MimeMessage> {
+        let content_type = {
+            let header =  headers.get("Content-Type".to_string());
+            match header {
+                Some(h) => h.get_value(),
+                None => Some(MimeContentTypeHeader{
+                    content_type: ("text".to_string(), "plain".to_string()),
+                    params: HashMap::new(),
+                })
+            }
+        };
+
+        if content_type.is_none() {
+            // If we failed to parse the Content-Type header, something went wrong, so bail.
+            None
+        } else {
+            let content_type = content_type.unwrap();
+            // Pull out the major mime type and the boundary (if it exists)
+            let (mime_type, _) = content_type.content_type;
+            let boundary = content_type.params.find(&"boundary".to_string());
+
+            let message = match mime_type.as_slice() {
+                // Only consider a multipart message if we have a boundary, otherwise don't
+                // bother and just assume it's a single message.
+                "multipart" if boundary.is_some() => {
+                    let boundary = boundary.unwrap();
+                    // Pull apart the message on the boundary.
+                    let mut parts = MimeMessage::split_boundary(body, boundary.clone());
+                    // Pop off the first message, as it's part of the parent.
+                    let body = parts.remove(0).unwrap_or("".to_string());
+                    // Parse out each of the child parts, recursively downwards.
+                    // Filtering out and unwrapping None as we go.
+                    let message_parts: Vec<MimeMessage> = parts.iter()
+                                                               .map(|part| { MimeMessage::parse(part.as_slice()) })
+                                                               .filter(|part| { part.is_some() })
+                                                               .map(|part| { part.unwrap() })
+                                                               .collect();
+                    let data = MimeMessageData {
+                        headers: headers,
+                        body: body,
+                    };
+                    MimeMultipart(data, message_parts)
+                },
+                _ => {
+                    // Boring message, bung the headers & body together and return.
+                    let data = MimeMessageData {
+                        headers: headers,
+                        body: body,
+                    };
+                    MimeNonMultipart(data)
+                },
+            };
+
+            Some(message)
+        }
+    }
+
+    // Split `body` up on the `boundary` string.
+    fn split_boundary(body: String, boundary: String) -> Vec<String> {
+        let mut lines = body.as_slice().split('\n');
+
+        let mut parts = Vec::new();
+        let mut current_part = String::new();
+
+        for line in lines {
+            let mut is_boundary = false;
+            if line.starts_with("--") {
+                let boundary_value = line.slice_from(2).trim_right();
+                is_boundary = boundary_value.to_string() == boundary;
+            }
+            if is_boundary {
+                // Clip off the final \r\n
+                parts.push(current_part);
+                current_part = String::new()
+            } else {
+                current_part.push_str(line);
+                current_part.push_str("\n");
+            }
+        }
+
+        if current_part.len() > 0 {
+            // Push what remains as the last message part
+            current_part.pop(); // Clear the final \n that we put in
+            parts.push(current_part);
+        }
+
+        parts
+    }
+
+    /// Parse `s` into a MimeMessage.
+    ///
+    /// Recurses down into each message, supporting an unlimited depth of messages.
+    ///
+    /// Be warned that each sub-message that fails to be parsed will be thrown away.
+    pub fn parse(s: &str) -> Option<MimeMessage> {
+        let mut parser = Rfc5322Parser::new(s);
+        match parser.consume_message() {
+            Some((headers, body)) => MimeMessage::from_headers(headers, body),
+            None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::header::{Header,HeaderMap};
+
+    #[deriving(Show)]
+    struct MessageTestResult<'s> {
+        headers: Vec<(&'s str, &'s str)>,
+        body: &'s str,
+        children: Option<Vec<MessageTestResult<'s>>>,
+    }
+
+    impl<'s> Equiv<MimeMessage> for MessageTestResult<'s> {
+        fn equiv(&self, other: &MimeMessage) -> bool {
+            let mut headers = HeaderMap::new();
+            for &(name, value) in self.headers.iter() {
+                let header = Header::new(name.to_string(), value.to_string());
+                headers.insert(header);
+            }
+
+            match (&self.children, other) {
+                (&Some(ref our_messages), &MimeMultipart(ref data, ref other_messages)) => {
+                    let mut children_match = true;
+                    for (index, child) in our_messages.iter().enumerate() {
+                        if !child.equiv(&other_messages[index]) {
+                            children_match = false;
+                            break;
+                        }
+                    }
+                    let header_match = headers == data.headers;
+                    let body_match = self.body.to_string() == data.body;
+
+                    if !children_match {
+                        println!("Children do not match!");
+                    }
+                    if !header_match {
+                        println!("Headers do not match!");
+                    }
+                    if !body_match {
+                        println!("Body does not match! ({} != {})", self.body, data.body);
+                    }
+
+                    header_match && body_match && children_match
+                },
+                (&None, &MimeNonMultipart(ref data)) => {
+                    let header_match = headers == data.headers;
+                    let body_match = self.body.to_string() == data.body;
+
+                    if !header_match {
+                        println!("Headers do not match!");
+                    }
+                    if !body_match {
+                        println!("Body does not match! ({} != {})", self.body, data.body);
+                    }
+
+                    header_match && body_match
+                },
+                (_, _) => {
+                    println!("Expected different message type than what was given");
+                    false
+                },
+            }
+        }
+    }
+
+    struct ParseTest<'s> {
+        input: &'s str,
+        output: Option<MessageTestResult<'s>>,
+        name: &'s str,
+    }
+
+    #[test]
+    fn test_message_parse() {
+        let tests = vec![
+            ParseTest {
+                input: "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                    ],
+                    body: "Hello!",
+                    children: None,
+                }),
+                name: "Simple single part message parse",
+            },
+
+            ParseTest {
+                input: "From: joe@example.org\r\n\
+                        To: john@example.org\r\n\
+                        Content-Type: multipart/alternate; boundary=foo\r\n\
+                        \r\n\
+                        Parent\r\n\
+                        --foo\r\n\
+                        Hello!\r\n\
+                        --foo\r\n\
+                        Other\r\n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/alternate; boundary=foo"),
+                    ],
+                    body: "Parent\r\n",
+                    children: Some(vec![
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Hello!\r\n",
+                            children: None,
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Other\r\n",
+                            children: None,
+                        },
+                    ]),
+                }),
+                name: "Simple multipart message parse",
+            },
+        ];
+
+        for test in tests.into_iter() {
+            println!("--- Next test: {}", test.name);
+            let message = MimeMessage::parse(test.input);
+            let result = match (test.output, message) {
+                (Some(ref expected), Some(ref given)) => expected.equiv(given),
+                (None, None) => true,
+                (_, _) => false,
+            };
+            assert!(result, test.name);
+        }
+    }
+}
