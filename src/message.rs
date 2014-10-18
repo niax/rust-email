@@ -335,6 +335,59 @@ mod tests {
                 }),
                 name: "Simple multipart message parse",
             },
+
+            ParseTest {
+                input: "From: joe@example.org\r\n\
+                        To: john@example.org\r\n\
+                        Content-Type: multipart/mixed; boundary=foo\r\n\
+                        \r\n\
+                        Parent\r\n\
+                        --foo\r\n\
+                        Content-Type: multipart/alternate; boundary=bar\r\n\
+
+                        --bar\r\n\
+                        Hello!\r\n\
+                        --bar\r\n\
+                        Other\r\n\
+                        --foo\r\n\
+                        Outside\r\n\
+                        --foo\r\n
+                        ",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/mixed; boundary=foo"),
+                    ],
+                    body: "Parent\r\n",
+                    children: Some(vec![
+                        MessageTestResult {
+                            headers: vec![
+                                ("Content-Type", "multipart/alternate; boundary=bar"),
+                            ],
+                            body: "",
+                            children: Some(vec![
+                                MessageTestResult {
+                                    headers: vec![ ],
+                                    body: "Hello!\r\n",
+                                    children: None,
+                                },
+                                MessageTestResult {
+                                    headers: vec![ ],
+                                    body: "Other\r\n",
+                                    children: None,
+                                },
+                            ]),
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Outside\r\n",
+                            children: None,
+                        },
+                    ]),
+                }),
+                name: "Deeply nested multipart test",
+            },
         ];
 
         for test in tests.into_iter() {
