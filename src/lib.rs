@@ -5,7 +5,7 @@ extern crate encoding;
 
 pub use header::{Header, HeaderMap, FromHeader};
 pub use address::{Address};
-pub use message::{MimeMessage, MimeMessageData};
+pub use message::{MimeMessage, MimeMessageData, MimeContentType, MimeContentTypeHeader};
 
 pub mod utils;
 pub mod rfc5322;

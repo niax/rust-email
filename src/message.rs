@@ -10,7 +10,9 @@ pub type MimeContentType = (String, String);
 
 /// Special header type for the Content-Type header.
 pub struct MimeContentTypeHeader {
+    /// The content type presented by this header
     pub content_type: MimeContentType,
+    /// Parameters of this header
     pub params: HashMap<String, String>,
 }
 
@@ -78,6 +80,7 @@ impl MimeMultipartType {
         }
     }
 
+    /// Returns a MimeContentType that represents this multipart type.
     pub fn to_content_type(&self) -> MimeContentType {
         let multipart = "multipart".to_string();
         match *self {
