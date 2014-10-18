@@ -44,7 +44,12 @@ pub struct MimeMessageData {
 /// Enum type over the different types of multipart message.
 #[deriving(Show)]
 pub enum MimeMessage {
+    /// This message is made of multiple sub parts.
+    ///
+    /// The `body` of MimeMessageData is the content of the message between
+    /// the final header and the first boundary.
     MimeMultipart(MimeMessageData, Vec<MimeMessage>),
+    /// A simple non-multipart message.
     MimeNonMultipart(MimeMessageData),
 }
 

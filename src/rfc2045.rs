@@ -1,3 +1,4 @@
+//! Module for dealing with RFC2045 style headers.
 use super::rfc5322::Rfc5322Parser;
 
 use std::collections::HashMap;
