@@ -1,3 +1,4 @@
+#![feature(macro_rules)]
 #![feature(globs)]
 #![experimental]
 extern crate serialize;
