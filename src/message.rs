@@ -1,38 +1,11 @@
-use super::header::{FromHeader,HeaderMap};
+use super::header::HeaderMap;
 use super::rfc5322::Rfc5322Parser;
-use super::rfc2045::Rfc2045Parser;
+use super::mimeheaders::{
+    MimeContentType,
+    MimeContentTypeHeader,
+};
 
 use std::collections::HashMap;
-
-/// Content-Type string, major/minor as the first and second elements
-/// respectively.
-pub type MimeContentType = (String, String);
-
-/// Special header type for the Content-Type header.
-pub struct MimeContentTypeHeader {
-    /// The content type presented by this header
-    pub content_type: MimeContentType,
-    /// Parameters of this header
-    pub params: HashMap<String, String>,
-}
-
-impl FromHeader for MimeContentTypeHeader {
-    fn from_header(value: String) -> Option<MimeContentTypeHeader> {
-        let mut parser = Rfc2045Parser::new(value.as_slice());
-        let (value, params) = parser.consume_all();
-
-        let mime_parts: Vec<&str> = value.as_slice().splitn(2, '/').collect();
-
-        if mime_parts.len() == 2 {
-            Some(MimeContentTypeHeader {
-                content_type: (mime_parts[0].to_string(), mime_parts[1].to_string()),
-                params: params
-            })
-        } else {
-            None
-        }
-    }
-}
 
 /// Represents the common data of a MIME message
 #[deriving(Show)]
@@ -120,7 +93,7 @@ impl MimeMessage {
             let header =  headers.get("Content-Type".to_string());
             match header {
                 Some(h) => h.get_value(),
-                None => Some(MimeContentTypeHeader{
+                None => Some(MimeContentTypeHeader {
                     content_type: ("text".to_string(), "plain".to_string()),
                     params: HashMap::new(),
                 })
@@ -406,12 +379,6 @@ mod tests {
             };
             assert!(result, test.name);
         }
-    }
-
-    fn bench_parse(s: &str, b: &mut Bencher) {
-        b.iter(|| {
-            MimeMessage::parse(s);
-        });
     }
 
     macro_rules! bench_parser {

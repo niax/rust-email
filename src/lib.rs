@@ -9,6 +9,8 @@ pub use address::{Address};
 pub use message::{
     MimeMessage, MimeMessageData,
     MimeMultipartType,
+};
+pub use mimeheaders::{
     MimeContentType, MimeContentTypeHeader
 };
 
@@ -18,4 +20,5 @@ pub mod rfc2047;
 pub mod rfc2045;
 mod header;
 mod address;
+mod mimeheaders;
 mod message;
