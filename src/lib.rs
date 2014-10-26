@@ -10,16 +10,12 @@ pub use message::{
     MimeMessage, MimeMessageData,
     MimeMultipartType,
 };
-pub use mimeheaders::{
-    MimeContentType, MimeContentTypeHeader,
-    MimeContentTransferEncoding,
-};
 
 pub mod utils;
 pub mod rfc5322;
 pub mod rfc2047;
 pub mod rfc2045;
+pub mod mimeheaders;
 mod header;
 mod address;
-mod mimeheaders;
 mod message;

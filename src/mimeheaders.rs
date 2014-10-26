@@ -36,10 +36,18 @@ impl FromHeader for MimeContentTypeHeader {
     }
 }
 
+/// Special header type for the Content-Transfer-Encoding header.
 #[deriving(Show,PartialEq,Eq)]
 pub enum MimeContentTransferEncoding {
+    /// Message content is not encoded in any way.
     MimeContentIdentity,
+    /// Content transfered using the quoted-printable encoding.
+    ///
+    /// This encoding is defined in RFC 2045 Section 6.7
     MimeContentQuotedPrintable,
+    /// Content transfered as BASE64
+    ///
+    /// This encoding is defined in RFC 2045 Section 6.8
     MimeContentBase64,
 }
 
