@@ -52,9 +52,13 @@ pub enum MimeContentTransferEncoding {
 }
 
 impl MimeContentTransferEncoding {
-    pub fn decode(&self, input: String) -> Option<Vec<u8>> {
+    /// Decode the input string with this transfer encoding.
+    ///
+    /// Note that this will return a clone of the input's bytes if the
+    /// transfer encoding is the Identity encoding.
+    pub fn decode(&self, input: &String) -> Option<Vec<u8>> {
         match *self {
-            MimeContentIdentity => Some(input.into_bytes()),
+            MimeContentIdentity => Some(input.clone().into_bytes()),
             MimeContentQuotedPrintable => decode_q_encoding(input.as_slice()).ok(),
             MimeContentBase64 => input.as_slice().from_base64().ok(),
         }
@@ -209,7 +213,7 @@ mod tests {
         ];
 
         for test in tests.into_iter() {
-            let result = test.encoding.decode(test.input.to_string());
+            let result = test.encoding.decode(&test.input.to_string());
             assert_eq!(result, test.output);
         }
     }

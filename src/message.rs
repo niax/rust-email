@@ -107,7 +107,7 @@ impl MimeMessage {
         let transfer_encoding: MimeContentTransferEncoding =
             self.headers().get_value("Content-Transfer-Encoding".to_string())
                           .unwrap_or(MimeContentIdentity);
-        transfer_encoding.decode(self.body().clone())
+        transfer_encoding.decode(self.body())
     }
 
     /// Decode the body of this message, as a string.
