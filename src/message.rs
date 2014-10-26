@@ -167,7 +167,7 @@ impl MimeMessage {
                 "multipart" if boundary.is_some() => {
                     let boundary = boundary.unwrap();
                     // Pull apart the message on the boundary.
-                    let mut parts = MimeMessage::split_boundary(body, boundary.clone());
+                    let mut parts = MimeMessage::split_boundary(&body, boundary);
                     // Pop off the first message, as it's part of the parent.
                     let body = parts.remove(0).unwrap_or("".to_string());
                     // Parse out each of the child parts, recursively downwards.
@@ -198,33 +198,79 @@ impl MimeMessage {
         }
     }
 
+
     // Split `body` up on the `boundary` string.
-    fn split_boundary(body: String, boundary: String) -> Vec<String> {
-        let mut lines = body.as_slice().split('\n');
-
-        let mut parts = Vec::new();
-        let mut current_part = String::new();
-
-        for line in lines {
-            let mut is_boundary = false;
-            if line.starts_with("--") {
-                let boundary_value = line.slice_from(2).trim_right();
-                is_boundary = boundary_value.to_string() == boundary;
-            }
-            if is_boundary {
-                // Clip off the final \r\n
-                parts.push(current_part);
-                current_part = String::new()
-            } else {
-                current_part.push_str(line);
-                current_part.push_str("\n");
-            }
+    fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
+        #[deriving(Show)]
+        enum BoundaryParseState {
+            Normal,
+            SeenCr,
+            SeenLf,
+            SeenDash,
+            ReadBoundary,
+            BoundaryEnd,
         }
 
-        if current_part.len() > 0 {
-            // Push what remains as the last message part
-            current_part.pop(); // Clear the final \n that we put in
-            parts.push(current_part);
+        // Start in a state where we're at the beginning of a line.
+        let mut state = SeenLf;
+
+        // Initialize starting positions
+        let mut pos = 0u;
+        let mut boundary_start = 0u;
+        let mut boundary_end = 0u;
+
+        let mut parts = Vec::new();
+
+        let body_slice = body.as_slice();
+
+        while pos < body.len() {
+            let ch_range = body_slice.char_range_at(pos);
+            let c = ch_range.ch;
+
+            state = match (state, c) {
+                (BoundaryEnd, _) => {
+                    // We're now out of a boundary, so remember where the end is,
+                    // so we can slice from the end of this boundary to the start of the next.
+                    boundary_end = pos;
+                    if c == '\n' {
+                        BoundaryEnd
+                    } else {
+                        Normal
+                    }
+                },
+                (ReadBoundary, '\r') => {
+                    let read_boundary = body_slice.slice(boundary_start + 1, pos).trim();
+                    if &read_boundary.to_string() == boundary {
+                        // Boundary matches, push the part
+                        // The part is from the last boundary's end to this boundary's beginning
+                        let part = body_slice.slice(boundary_end, boundary_start - 1);
+                        parts.push(part.to_string());
+                        // This is our boundary, so consume boundary end
+                        BoundaryEnd
+                    } else {
+                        // This isn't our boundary, so leave it.
+                        Normal
+                    }
+                },
+                (ReadBoundary, _) => ReadBoundary,
+                (SeenDash, '-') => {
+                    boundary_start = pos;
+                    ReadBoundary
+                },
+                (SeenLf, '-') => SeenDash,
+                (SeenCr, '\n') => SeenLf,
+                (Normal, '\r') => SeenCr,
+                (Normal, _) => Normal,
+                (_, _) => Normal,
+            };
+
+            pos = ch_range.next;
+        }
+
+        // Push in the final part of the message (what remains)
+        let final_part = body_slice.slice_from(boundary_end);
+        if final_part.trim().len() != 0 {
+            parts.push(final_part.to_string());
         }
 
         parts
@@ -375,15 +421,14 @@ mod tests {
                         Parent\r\n\
                         --foo\r\n\
                         Content-Type: multipart/alternate; boundary=bar\r\n\
-
+                        \r\n\
                         --bar\r\n\
                         Hello!\r\n\
                         --bar\r\n\
                         Other\r\n\
                         --foo\r\n\
                         Outside\r\n\
-                        --foo\r\n
-                        ",
+                        --foo\r\n",
                 output: Some(MessageTestResult {
                     headers: vec![
                         ("From", "joe@example.org"),

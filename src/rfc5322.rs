@@ -333,6 +333,7 @@ impl<'s> Rfc5322Parser<'s> {
     }
 
     /// Consume a single character from the input.
+    #[inline]
     pub fn consume_char(&mut self) -> char {
         if self.eof() { 
             fail!("Consuming beyond end of input");
@@ -349,17 +350,19 @@ impl<'s> Rfc5322Parser<'s> {
     /// which caused a false result from `test`.
     ///
     /// Returns the string of characters that returned true for the test function.
+    #[inline]
     pub fn consume_while(&mut self, test: |char| -> bool) -> String {
-        let mut res = String::new();
+        let start_pos = self.pos;
         while !self.eof() && test(self.peek()) {
-            res.push(self.consume_char())
+            self.consume_char();
         }
-        res
+        self.s.slice(start_pos, self.pos).to_string()
     }
 
     /// Peek at the current character.
     ///
     /// Note that this does not do any bounds checking.
+    #[inline]
     pub fn peek(&self) -> char {
         self.s.char_at(self.pos)
     }
