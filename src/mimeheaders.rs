@@ -1,7 +1,10 @@
 use super::header::FromHeader;
 use super::rfc2045::Rfc2045Parser;
+use super::rfc2047::decode_q_encoding;
 
+use std::ascii::OwnedAsciiExt;
 use std::collections::HashMap;
+use serialize::base64::FromBase64;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.
@@ -29,6 +32,35 @@ impl FromHeader for MimeContentTypeHeader {
             })
         } else {
             None
+        }
+    }
+}
+
+#[deriving(Show,PartialEq,Eq)]
+pub enum MimeContentTransferEncoding {
+    MimeContentIdentity,
+    MimeContentQuotedPrintable,
+    MimeContentBase64,
+}
+
+impl MimeContentTransferEncoding {
+    pub fn decode(&self, input: String) -> Option<Vec<u8>> {
+        match *self {
+            MimeContentIdentity => Some(input.into_bytes()),
+            MimeContentQuotedPrintable => decode_q_encoding(input.as_slice()).ok(),
+            MimeContentBase64 => input.as_slice().from_base64().ok(),
+        }
+    }
+}
+
+impl FromHeader for MimeContentTransferEncoding {
+    fn from_header(value: String) -> Option<MimeContentTransferEncoding> {
+        let lower = value.into_ascii_lower();
+        match lower.as_slice() {
+            "7bit" | "8bit" | "binary" => Some(MimeContentIdentity),
+            "quoted-printable" => Some(MimeContentQuotedPrintable),
+            "base64" => Some(MimeContentBase64),
+            _ => None,
         }
     }
 }
@@ -104,6 +136,73 @@ mod tests {
                 (_, _) => false,
             };
             assert!(result, format!("Content-Type parse: '{}'", test.input));
+        }
+    }
+
+    #[test]
+    fn test_content_transfer_parse() {
+        let tests = vec![
+            ("base64", Some(MimeContentBase64)),
+            ("quoted-printable", Some(MimeContentQuotedPrintable)),
+            ("7bit", Some(MimeContentIdentity)),
+            ("8bit", Some(MimeContentIdentity)),
+            ("binary", Some(MimeContentIdentity)),
+            // Check for case insensitivity
+            ("BASE64", Some(MimeContentBase64)),
+            // Check for fail case
+            ("lkasjdl", None),
+        ];
+
+        for (test, expected) in tests.into_iter() {
+            let header = Header::new("Content-Transfer-Encoding".to_string(), test.to_string());
+            let parsed: Option<MimeContentTransferEncoding> = header.get_value();
+            assert_eq!(parsed, expected);
+        }
+    }
+
+    struct ContentTransferDecodeTest<'s> {
+        encoding: MimeContentTransferEncoding,
+        input: &'s str,
+        output: Option<Vec<u8>>,
+    }
+
+    #[test]
+    fn test_content_transfer_decode() {
+        let tests = vec![
+            ContentTransferDecodeTest {
+                encoding: MimeContentIdentity,
+                input: "foo",
+                output: Some(vec![102, 111, 111]),
+            },
+            ContentTransferDecodeTest {
+                encoding: MimeContentQuotedPrintable,
+                input: "foo=\r\nbar\r\nbaz",
+                output: Some(vec![
+                    102, 111, 111, 98, 97, 114, 13, 10,   // foobar
+                    98, 97, 122,                          // baz
+                ]),
+            },
+            ContentTransferDecodeTest {
+                encoding: MimeContentBase64,
+                input: "Zm9vCmJhcgpi\r\nYXoKcXV4Cg==",
+                output: Some(vec![
+                    102, 111, 111, 10, // foo
+                    98, 97, 114, 10,   // bar
+                    98, 97, 122, 10,   // baz
+                    113, 117, 120, 10, // qux
+                ]),
+            },
+            // Bad base64 content
+            ContentTransferDecodeTest {
+                encoding: MimeContentBase64,
+                input: "/?#",
+                output: None,
+            },
+        ];
+
+        for test in tests.into_iter() {
+            let result = test.encoding.decode(test.input.to_string());
+            assert_eq!(result, test.output);
         }
     }
 }

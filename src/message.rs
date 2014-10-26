@@ -3,9 +3,14 @@ use super::rfc5322::Rfc5322Parser;
 use super::mimeheaders::{
     MimeContentType,
     MimeContentTypeHeader,
+    MimeContentTransferEncoding,
+    MimeContentIdentity,
 };
 
 use std::collections::HashMap;
+
+use encoding::label::encoding_from_whatwg_label;
+use encoding::DecodeReplace;
 
 /// Represents the common data of a MIME message
 #[deriving(Show)]
@@ -83,6 +88,53 @@ impl MimeMessage {
         match *self {
             MimeMultipart(ref data, _, _) => &data.headers,
             MimeNonMultipart(ref data) => &data.headers,
+        }
+    }
+
+    /// Get a reference to the string body of this message.
+    ///
+    /// Keep in mind that this is the undecoded form, so may be quoted-printable
+    /// or base64 encoded.
+    pub fn body(&self) -> &String {
+        match *self {
+            MimeMultipart(ref data, _, _) => &data.body,
+            MimeNonMultipart(ref data) => &data.body,
+        }
+    }
+
+    /// Decode the body of this message, as a series of bytes
+    pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
+        let transfer_encoding: MimeContentTransferEncoding =
+            self.headers().get_value("Content-Transfer-Encoding".to_string())
+                          .unwrap_or(MimeContentIdentity);
+        transfer_encoding.decode(self.body().clone())
+    }
+
+    /// Decode the body of this message, as a string.
+    ///
+    /// This takes into account any charset as set on the `Content-Type` header,
+    /// decoding the bytes with this character set.
+    pub fn decoded_body_string(&self) -> Option<String> {
+        let content_type: Option<MimeContentTypeHeader> =
+            self.headers().get_value("Content-Type".to_string());
+
+        match self.decoded_body_bytes() {
+            Some(bytes) => {
+                let charset = match content_type {
+                    Some(ct) => {
+                        ct.params.find_copy(&"charset".to_string())
+                    }
+                    _ => None,
+                }.unwrap_or("us-ascii".to_string());
+
+                let decoder = encoding_from_whatwg_label(charset.as_slice());
+
+                match decoder {
+                    Some(d) => d.decode(bytes.as_slice(), DecodeReplace).ok(),
+                    _ => None,
+                }
+            },
+            None => None,
         }
     }
 
@@ -378,6 +430,48 @@ mod tests {
                 (_, _) => false,
             };
             assert!(result, test.name);
+        }
+    }
+
+    struct BodyDecodingTestResult<'s> {
+        body: &'s str,
+        headers: Vec<(&'s str, &'s str)>,
+        result: Option<&'s str>,
+    }
+
+    #[test]
+    fn test_body_string_decoding() {
+        let tests = vec![
+            BodyDecodingTestResult {
+                body: "foo=\r\nbar\r\nbaz",
+                headers: vec![
+                    ("Content-Type", "text/plain"),
+                    ("Content-Transfer-Encoding", "quoted-printable"),
+                ],
+                result: Some("foobar\r\nbaz"),
+            },
+            BodyDecodingTestResult {
+                body: "foo=\r\nbar\r\nbaz",
+                headers: vec![
+                    ("Content-Type", "text/plain"),
+                    ("Content-Transfer-Encoding", "7bit"),
+                ],
+                result: Some("foo=\r\nbar\r\nbaz"),
+            },
+        ];
+
+        for test in tests.into_iter() {
+            let mut headers = HeaderMap::new();
+            for (name, value) in test.headers.into_iter() {
+                headers.insert(Header::new(name.to_string(), value.to_string()));
+            }
+            let message_data = MimeMessageData {
+                headers: headers,
+                body: test.body.to_string(),
+            };
+            let message = MimeNonMultipart(message_data);
+            let expected = test.result.map(|s| { s.to_string() });
+            assert_eq!(message.decoded_body_string(), expected);
         }
     }
 

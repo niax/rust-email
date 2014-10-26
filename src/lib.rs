@@ -11,7 +11,8 @@ pub use message::{
     MimeMultipartType,
 };
 pub use mimeheaders::{
-    MimeContentType, MimeContentTypeHeader
+    MimeContentType, MimeContentTypeHeader,
+    MimeContentTransferEncoding,
 };
 
 pub mod utils;

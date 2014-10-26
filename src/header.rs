@@ -103,6 +103,15 @@ impl HeaderMap {
         }
     }
 
+
+    /// Get the last value of the header, as a decoded type.
+    pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
+        match self.get(name) {
+            Some(ref header) => header.get_value(),
+            None => None,
+        }
+    }
+
 }
 
 impl fmt::Show for HeaderMap {

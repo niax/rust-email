@@ -39,7 +39,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
     }
 }
 
-fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
+pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
 
     let mut pos = 0u;
@@ -55,7 +55,13 @@ fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                     hex_string.push(hex_digit_char.ch);
                     inner_pos = hex_digit_char.next;
                 }
-                result.push(from_str_radix(hex_string.as_slice(), 16u).unwrap());
+                // = followed by a newline means a continuation
+                if hex_string.as_slice() != "\r\n" {
+                    match from_str_radix(hex_string.as_slice(), 16u) {
+                        Some(char_val) => { result.push(char_val) },
+                        None => { return Err(format!("'{}' is not a hex number", hex_string)) },
+                    }
+                }
                 inner_pos
             }
             _ => {
