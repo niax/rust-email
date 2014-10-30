@@ -54,7 +54,7 @@ impl MimeMultipartType {
             ("multipart", "digest") => MimeMultipartDigest,
             ("multipart", "parallel") => MimeMultipartParallel,
             ("multipart", "mixed") | ("multipart", _) => MimeMultipartMixed,
-            _ => fail!("ContentType is not multipart"),
+            _ => panic!("ContentType is not multipart"),
         }
     }
 
