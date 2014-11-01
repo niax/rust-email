@@ -74,7 +74,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn pop_position(&mut self) {
         match self.pos_stack.pop() {
             Some(pos) => { self.pos = pos; },
-            None => fail!("Popped position stack too far"),
+            None => panic!("Popped position stack too far"),
         }
     }
 
@@ -336,7 +336,8 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     pub fn consume_char(&mut self) -> char {
         if self.eof() { 
-            fail!("Consuming beyond end of input");
+            // TODO: Consider making this return an Option<char>
+            panic!("Consuming beyond end of input");
         }
         let ch_range = self.s.char_range_at(self.pos);
         self.pos = ch_range.next;
@@ -493,7 +494,7 @@ mod tests {
                         }).count() > 0);
                     }
                 },
-                None => fail!("Failed to parse message"),
+                None => panic!("Failed to parse message"),
             };
         }
     }

@@ -47,14 +47,14 @@ pub enum MimeMultipartType {
 
 impl MimeMultipartType {
     /// Returns the appropriate `MimeMultipartType` for the given MimeContentType
-    pub fn from_content_type(ct: MimeContentType) -> MimeMultipartType {
+    pub fn from_content_type(ct: MimeContentType) -> Option<MimeMultipartType> {
         let (major, minor) = ct;
         match (major.as_slice(), minor.as_slice()) {
-            ("multipart", "alternate") => MimeMultipartAlternate,
-            ("multipart", "digest") => MimeMultipartDigest,
-            ("multipart", "parallel") => MimeMultipartParallel,
-            ("multipart", "mixed") | ("multipart", _) => MimeMultipartMixed,
-            _ => fail!("ContentType is not multipart"),
+            ("multipart", "alternate") => Some(MimeMultipartAlternate),
+            ("multipart", "digest") => Some(MimeMultipartDigest),
+            ("multipart", "parallel") => Some(MimeMultipartParallel),
+            ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartMixed),
+            _ => None,
         }
     }
 
@@ -181,7 +181,9 @@ impl MimeMessage {
                         headers: headers,
                         body: body,
                     };
-                    let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type));
+                    // It should be safe to unwrap the multipart type here because we know the main
+                    // mimetype is "multipart"
+                    let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
                     MimeMultipart(data, multipart_type, message_parts)
                 },
                 _ => {
@@ -563,17 +565,49 @@ mod tests {
          --foo\r\n"
     )
 
+    struct MultipartParseTest<'s> {
+        mime_type: (&'s str, &'s str),
+        result: Option<MimeMultipartType>,
+    }
 
     #[test]
     fn test_multipart_type_type_parsing() {
-        let multipart = "multipart".to_string();
-        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "mixed".to_string())), MimeMultipartMixed);
-        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "alternate".to_string())), MimeMultipartAlternate);
-        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "digest".to_string())), MimeMultipartDigest);
-        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "parallel".to_string())), MimeMultipartParallel);
+        let tests = vec![
+            MultipartParseTest {
+                mime_type: ("multipart", "mixed"),
+                result: Some(MimeMultipartMixed),
+            },
+            MultipartParseTest {
+                mime_type: ("multipart", "alternate"),
+                result: Some(MimeMultipartAlternate),
+            },
+            MultipartParseTest {
+                mime_type: ("multipart", "digest"),
+                result: Some(MimeMultipartDigest),
+            },
+            MultipartParseTest {
+                mime_type: ("multipart", "parallel"),
+                result: Some(MimeMultipartParallel),
+            },
+            // Test fallback on multipart/mixed
+            MultipartParseTest {
+                mime_type: ("multipart", "potato"),
+                result: Some(MimeMultipartMixed),
+            },
+            // Test failure state
+            MultipartParseTest {
+                mime_type: ("text", "plain"),
+                result: None,
+            },
+        ];
 
-        // Test failback onto multipart/mixed
-        assert_eq!(MimeMultipartType::from_content_type((multipart.clone(), "potato".to_string())), MimeMultipartMixed);
+        for test in tests.into_iter() {
+            let (major_type, minor_type) = test.mime_type;
+            assert_eq!(
+                MimeMultipartType::from_content_type((major_type.to_string(), minor_type.to_string())),
+                test.result
+            );
+        }
     }
 
     #[test]

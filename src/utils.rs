@@ -34,7 +34,7 @@ impl<'a, V, T: Iterator<V>> Iterator<V> for MultiIter<'a, V, T> {
             let iter_len = self.iters.len();
 
             // Get the next value from the current iterator
-            let cur_iter = self.iters.get_mut(self.current_iter);
+            let cur_iter = &mut self.iters[self.current_iter];
             let next = cur_iter.next();
 
             if next.is_some() {

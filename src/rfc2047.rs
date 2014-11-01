@@ -23,7 +23,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
         let bytes = match encoding.as_slice() {
             "q" => decode_q_encoding(content),
             "b" => decode_base64_encoding(content),
-            _ => fail!("Unknown encoding type"),
+            _ => panic!("Unknown encoding type"),
         };
 
         // XXX: Relies on WHATWG labels, rather than MIME labels for
