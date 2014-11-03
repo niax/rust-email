@@ -7,7 +7,7 @@ extern crate encoding;
 pub use header::{Header, HeaderMap, FromHeader};
 pub use address::{Address};
 pub use message::{
-    MimeMessage, MimeMessageData,
+    MimeMessage,
     MimeMultipartType,
 };
 

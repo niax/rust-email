@@ -46,18 +46,7 @@ impl Header {
 
 impl fmt::Show for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut lines = self.value.as_slice().split('\n');
-        // Take the first line as the start of the formatted value
-        let mut formatted_value = lines.next().unwrap().to_string();
-        for line in lines {
-            // Add the separator between lines
-            // RFC 822 uses linear whitespace (tabs or spaces) to indicate
-            // a continuation of a header value over a newline
-            formatted_value.push_str("\r\n\t");
-            formatted_value.push_str(line);
-        }
-
-        write!(fmt, "{}: {}", self.name, formatted_value)
+        write!(fmt, "{}: {}", self.name, self.value)
     }
 }
 
@@ -112,28 +101,11 @@ impl HeaderMap {
         }
     }
 
-}
-
-impl fmt::Show for HeaderMap {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        for header in self.iter() {
-            match write!(fmt, "{}\r\n", header) {
-                Err(e) => return Err(e),
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Collection for HeaderMap {
-    fn len(&self) -> uint {
+    pub fn len(&self) -> uint {
         self.iter().count()
     }
-}
 
-impl Map<String, Vec<Header>> for HeaderMap {
-    fn find(&self, key: &String) -> Option<&Vec<Header>> {
+    pub fn find(&self, key: &String) -> Option<&Vec<Header>> {
         self.headers.find(key)
     }
 }
@@ -161,12 +133,6 @@ mod tests {
     fn test_header_to_string() {
         let header = Header::new("Test".to_string(), "Value".to_string());
         assert_eq!(header.to_string(), "Test: Value".to_string());
-    }
-
-    #[test]
-    fn test_multiline_header_to_string() {
-        let header = Header::new("Test".to_string(), "Value\nOver lines".to_string());
-        assert_eq!(header.to_string(), "Test: Value\r\n\tOver lines".to_string());
     }
 
     #[test]
@@ -201,19 +167,5 @@ mod tests {
         }
         // And that there is the right number of them
         assert_eq!(count, expected_headers.len());
-    }
-
-    #[test]
-    fn test_header_map_string() {
-        let mut headers = HeaderMap::new();
-        for header in make_sample_headers().into_iter() {
-            headers.insert(header);
-        }
-        let result = headers.to_string();
-        let slice = result.as_slice();
-        assert!(slice.contains("Test: Value\r\n"));
-        assert!(slice.contains("Test: Value 2\r\n"));
-        assert!(slice.contains("Test-2: Value 3\r\n"));
-        assert!(slice.contains("Test-Multiline: Foo\r\n\tBar"));
     }
 }

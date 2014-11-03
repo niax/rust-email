@@ -30,6 +30,10 @@ impl<'a, V, T: Iterator<V>> MultiIter<'a, V, T> {
 
 impl<'a, V, T: Iterator<V>> Iterator<V> for MultiIter<'a, V, T> {
     fn next(&mut self) -> Option<V> {
+        if self.iters.len() == 0 {
+            return None;
+        }
+
         loop {
             let iter_len = self.iters.len();
 

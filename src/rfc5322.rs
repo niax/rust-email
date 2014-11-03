@@ -376,6 +376,63 @@ impl<'s> Rfc5322Parser<'s> {
 
 }
 
+/// Type for constructing RFC 5322 messages
+pub struct Rfc5322Builder {
+    result: String
+}
+
+impl Rfc5322Builder {
+    /// Make a new builder, with an empty string
+    pub fn new() -> Rfc5322Builder {
+        Rfc5322Builder {
+            result: "".to_string(),
+        }
+    }
+
+    pub fn result(&self) -> &String {
+        &self.result
+    }
+
+    pub fn emit_raw(&mut self, s: &str) {
+        self.result.push_str(s);
+    }
+
+    pub fn emit_folded(&mut self, s: &str) {
+       let mut pos = 0u;
+       let mut cur_len = 0u;
+       let mut last_space = 0u;
+       let mut last_cut = 0u;
+
+       while pos < s.len() {
+           let c_range = s.char_range_at(pos);
+           let c = c_range.ch;
+
+           if c == ' ' {
+               last_space = pos;
+           }
+
+           cur_len += 1;
+           // We've reached our line length, so
+           if cur_len >= 78 {
+               // Emit the string from the last place we cut it to the
+               // last space that we saw
+               self.emit_raw(s.slice(last_cut, last_space));
+               // ... and get us ready to put out the continuation
+               self.emit_raw("\r\n\t");
+
+               // Reset our counters
+               cur_len = 0;
+               last_cut = s.char_range_at(last_space).next;
+           }
+
+           pos = c_range.next;
+       }
+
+       // Finally, emit everything left in the string
+       self.emit_raw(s.slice_from(last_cut));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,5 +554,34 @@ mod tests {
                 None => panic!("Failed to parse message"),
             };
         }
+    }
+
+    #[test]
+    fn test_builder_folding() {
+        struct BuildFoldTest<'s> {
+            input: &'s str,
+            expected: &'s str,
+        }
+
+        let tests = vec![
+            BuildFoldTest {
+                input: "A long line that should get folded on a space at some point around here, possibly at this point.",
+                expected: "A long line that should get folded on a space at some point around here,\r\n\
+                \tpossibly at this point.",
+            },
+            BuildFoldTest {
+                input: "A long line that should get folded on a space at some point around here, possibly at this point. And yet more content that will get folded onto another line.",
+                expected: "A long line that should get folded on a space at some point around here,\r\n\
+                \tpossibly at this point. And yet more content that will get folded onto another\r\n\
+                \tline.",
+            },
+        ];
+
+        for test in tests.into_iter() {
+            let mut gen = Rfc5322Builder::new();
+            gen.emit_folded(test.input);
+            assert_eq!(gen.result(), &test.expected.to_string());
+        }
+
     }
 }
