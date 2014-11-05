@@ -1,9 +1,5 @@
 use std::fmt;
-use std::collections::HashMap;
-use std::collections::hashmap::{Occupied, Vacant};
 use std::slice::Items;
-
-use super::utils::MultiIter;
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
@@ -53,45 +49,30 @@ impl fmt::Show for Header {
 /// A collection of Headers
 #[deriving(Eq,PartialEq)]
 pub struct HeaderMap {
-    headers: HashMap<String, Vec<Header>>,
+    headers: Vec<Header>,
 }
 
 impl HeaderMap {
-    pub fn new() -> HeaderMap {
+    pub fn new() -> HeaderMap{
         HeaderMap {
-            headers: HashMap::new()
+            headers: Vec::new(),
         }
     }
 
     /// Adds a header to the collection
     pub fn insert(&mut self, header: Header) {
-        // If the header hashmap already has this header, use that list.
-        // Otherwise, make a new one.
-        let header_list = match self.headers.entry(header.name.clone()) {
-            Vacant(entry) => entry.set(Vec::new()),
-            Occupied(entry) => entry.into_mut(),
-        };
-        // ... and add the new header to it
-        header_list.push(header);
+        self.headers.push(header);
     }
 
     /// Get an Iterator over the collection of headers.
-    pub fn iter(&self) -> MultiIter<&Header, Items<Header>> {
-        let mut iters = Vec::new();
-        for header_list in self.headers.values() {
-            iters.push(header_list.iter());
-        }
-        MultiIter::new(iters)
+    pub fn iter(&self) -> Items<Header> {
+        self.headers.iter()
     }
 
     /// Get the last value of the header
     pub fn get(&self, name: String) -> Option<&Header> {
-        match self.headers.find(&name) {
-            Some(values) => values.last(),
-            None => None,
-        }
+        self.iter().filter(|h| { h.name == name }).last()
     }
-
 
     /// Get the last value of the header, as a decoded type.
     pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
@@ -102,11 +83,17 @@ impl HeaderMap {
     }
 
     pub fn len(&self) -> uint {
-        self.iter().count()
+        self.headers.len()
     }
 
-    pub fn find(&self, key: &String) -> Option<&Vec<Header>> {
-        self.headers.find(key)
+    pub fn find(&self, key: &String) -> Option<Vec<&Header>> {
+        let headers: Vec<&Header> = self.iter().filter(|h| { &h.name == key }).collect();
+
+        if headers.len() > 0u {
+            Some(headers)
+        } else {
+            None
+        }
     }
 }
 
