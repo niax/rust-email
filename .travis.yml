@@ -3,7 +3,7 @@ rust: nightly
 
 env:
     global:
-        - secure: I4WPZjTaIGzkYLG4SfPM5xonXGtJaagWgU9Nodw3+5qNZ4wLWK+hWFU4G4leApDnT0n+2Og6T29/Hbq81DfZFC9uWy5EPXOBcdOD9Ge4Cktap2b1ciPXbK1smq2O0W20Z0kRyvNJ57Hgt7tR4DhE6NrecR+Sp+BUlAyeyv7VG2g=
+        - secure: EUfEQIcFJtMALM7RDe0z3qxyjfxyQQR7qgoyEWSMsXewywrSmpF2JqAwnknOFBhKPxVVqboLugL0g1j+syTdPB2nx7pw2GoN/gAIRdyl6+8zdjeSKqDeMulv+3y3cOp02xv1pz3/3x4jyk9fMSKfl2/2PzNUv6rCZlD0UgMurAg=
 
 script:
     - cargo build -v
