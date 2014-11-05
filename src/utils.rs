@@ -1,7 +1,7 @@
 /// An Iterator over multiple iterators, using each in tern until it runs out of values.
 ///
 /// ```
-/// use mime::utils::MultiIter;
+/// use email::utils::MultiIter;
 ///
 /// let v1 = vec![0u, 1, 2, 3];
 /// let v2 = vec![4u, 5, 6, 7];

@@ -1,6 +1,6 @@
-extern crate mime;
+extern crate email;
 
-use mime::{MimeMessage, Header};
+use email::{MimeMessage, Header};
 
 fn main() {
     let parts = vec![

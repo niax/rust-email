@@ -1,6 +1,6 @@
 [package]
 
-name = "mime"
+name = "email"
 version = "0.0.1"
 authors = ["Nicholas Hollett <niax@niax.co.uk>"]
 
