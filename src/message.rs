@@ -3,14 +3,13 @@ use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
 use super::mimeheaders::{
     MimeContentType,
     MimeContentTypeHeader,
-    MimeContentTransferEncoding,
-    MimeContentIdentity,
+    MimeContentTransferEncoding
 };
 
 use std::collections::HashMap;
 
 use encoding::label::encoding_from_whatwg_label;
-use encoding::DecodeReplace;
+use encoding::types::DecoderTrap;
 
 /// Marks the type of a multipart message
 #[deriving(Eq,PartialEq,Show)]
@@ -20,20 +19,20 @@ pub enum MimeMultipartType {
     /// This value is the default.
     ///
     /// As defined by Section 5.1.3 of RFC 2046
-    MimeMultipartMixed,
+    Mixed,
     /// Entries which are interchangeable, such that the system can choose
     /// whichever is "best" for its use.
     ///
     /// As defined by Section 5.1.4 of RFC 2046
-    MimeMultipartAlternate,
+    Alternate,
     /// Entries are (typically) a collection of messages.
     ///
     /// As defined by Section 5.1.5 of RFC 2046
-    MimeMultipartDigest,
+    Digest,
     /// Entry order does not matter, and could be displayed simultaneously.
     ///
     /// As defined by Section 5.1.6 of RFC 2046
-    MimeMultipartParallel,
+    Parallel,
 }
 
 impl MimeMultipartType {
@@ -41,10 +40,10 @@ impl MimeMultipartType {
     pub fn from_content_type(ct: MimeContentType) -> Option<MimeMultipartType> {
         let (major, minor) = ct;
         match (major.as_slice(), minor.as_slice()) {
-            ("multipart", "alternate") => Some(MimeMultipartAlternate),
-            ("multipart", "digest") => Some(MimeMultipartDigest),
-            ("multipart", "parallel") => Some(MimeMultipartParallel),
-            ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartMixed),
+            ("multipart", "alternate") => Some(MimeMultipartType::Alternate),
+            ("multipart", "digest") => Some(MimeMultipartType::Digest),
+            ("multipart", "parallel") => Some(MimeMultipartType::Parallel),
+            ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartType::Mixed),
             _ => None,
         }
     }
@@ -53,10 +52,10 @@ impl MimeMultipartType {
     pub fn to_content_type(&self) -> MimeContentType {
         let multipart = "multipart".to_string();
         match *self {
-            MimeMultipartMixed => (multipart, "mixed".to_string()),
-            MimeMultipartAlternate => (multipart, "alternate".to_string()),
-            MimeMultipartDigest => (multipart, "digest".to_string()),
-            MimeMultipartParallel => (multipart, "parallel".to_string()),
+            MimeMultipartType::Mixed => (multipart, "mixed".to_string()),
+            MimeMultipartType::Alternate => (multipart, "alternate".to_string()),
+            MimeMultipartType::Digest => (multipart, "digest".to_string()),
+            MimeMultipartType::Parallel => (multipart, "parallel".to_string()),
         }
     }
 }
@@ -135,7 +134,7 @@ impl MimeMessage {
     pub fn boundary(&mut self) -> String {
         if self.boundary.is_none() {
             if self.message_type.is_none() {
-                self.message_type = Some(MimeMultipartMixed);
+                self.message_type = Some(MimeMultipartType::Mixed);
             }
 
             // Make boundary string.
@@ -177,7 +176,7 @@ impl MimeMessage {
     pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
         let transfer_encoding: MimeContentTransferEncoding =
             self.headers.get_value("Content-Transfer-Encoding".to_string())
-                        .unwrap_or(MimeContentIdentity);
+                        .unwrap_or(MimeContentTransferEncoding::Identity);
         transfer_encoding.decode(&self.body)
     }
 
@@ -201,7 +200,7 @@ impl MimeMessage {
                 let decoder = encoding_from_whatwg_label(charset.as_slice());
 
                 match decoder {
-                    Some(d) => d.decode(bytes.as_slice(), DecodeReplace).ok(),
+                    Some(d) => d.decode(bytes.as_slice(), DecoderTrap::Replace).ok(),
                     _ => None,
                 }
             },
@@ -277,7 +276,7 @@ impl MimeMessage {
         }
 
         // Start in a state where we're at the beginning of a line.
-        let mut state = SeenLf;
+        let mut state = BoundaryParseState::SeenLf;
 
         // Initialize starting positions
         let mut pos = 0u;
@@ -293,17 +292,17 @@ impl MimeMessage {
             let c = ch_range.ch;
 
             state = match (state, c) {
-                (BoundaryEnd, _) => {
+                (BoundaryParseState::BoundaryEnd, _) => {
                     // We're now out of a boundary, so remember where the end is,
                     // so we can slice from the end of this boundary to the start of the next.
                     boundary_end = pos;
                     if c == '\n' {
-                        BoundaryEnd
+                        BoundaryParseState::BoundaryEnd
                     } else {
-                        Normal
+                        BoundaryParseState::Normal
                     }
                 },
-                (ReadBoundary, '\r') => {
+                (BoundaryParseState::ReadBoundary, '\r') => {
                     let read_boundary = body_slice.slice(boundary_start + 1, pos).trim();
                     if &read_boundary.to_string() == boundary {
                         // Boundary matches, push the part
@@ -311,22 +310,22 @@ impl MimeMessage {
                         let part = body_slice.slice(boundary_end, boundary_start - 1);
                         parts.push(part.to_string());
                         // This is our boundary, so consume boundary end
-                        BoundaryEnd
+                        BoundaryParseState::BoundaryEnd
                     } else {
                         // This isn't our boundary, so leave it.
-                        Normal
+                        BoundaryParseState::Normal
                     }
                 },
-                (ReadBoundary, _) => ReadBoundary,
-                (SeenDash, '-') => {
+                (BoundaryParseState::ReadBoundary, _) => BoundaryParseState::ReadBoundary,
+                (BoundaryParseState::SeenDash, '-') => {
                     boundary_start = pos;
-                    ReadBoundary
+                    BoundaryParseState::ReadBoundary
                 },
-                (SeenLf, '-') => SeenDash,
-                (SeenCr, '\n') => SeenLf,
-                (Normal, '\r') => SeenCr,
-                (Normal, _) => Normal,
-                (_, _) => Normal,
+                (BoundaryParseState::SeenLf, '-') => BoundaryParseState::SeenDash,
+                (BoundaryParseState::SeenCr, '\n') => BoundaryParseState::SeenLf,
+                (BoundaryParseState::Normal, '\r') => BoundaryParseState::SeenCr,
+                (BoundaryParseState::Normal, _) => BoundaryParseState::Normal,
+                (_, _) => BoundaryParseState::Normal,
             };
 
             pos = ch_range.next;
@@ -606,24 +605,24 @@ mod tests {
         let tests = vec![
             MultipartParseTest {
                 mime_type: ("multipart", "mixed"),
-                result: Some(MimeMultipartMixed),
+                result: Some(MimeMultipartType::Mixed),
             },
             MultipartParseTest {
                 mime_type: ("multipart", "alternate"),
-                result: Some(MimeMultipartAlternate),
+                result: Some(MimeMultipartType::Alternate),
             },
             MultipartParseTest {
                 mime_type: ("multipart", "digest"),
-                result: Some(MimeMultipartDigest),
+                result: Some(MimeMultipartType::Digest),
             },
             MultipartParseTest {
                 mime_type: ("multipart", "parallel"),
-                result: Some(MimeMultipartParallel),
+                result: Some(MimeMultipartType::Parallel),
             },
             // Test fallback on multipart/mixed
             MultipartParseTest {
                 mime_type: ("multipart", "potato"),
-                result: Some(MimeMultipartMixed),
+                result: Some(MimeMultipartType::Mixed),
             },
             // Test failure state
             MultipartParseTest {
@@ -645,9 +644,9 @@ mod tests {
     fn test_multipart_type_to_content_type() {
         let multipart = "multipart".to_string();
 
-        assert_eq!(MimeMultipartMixed.to_content_type(),     (multipart.clone(), "mixed".to_string()));
-        assert_eq!(MimeMultipartAlternate.to_content_type(), (multipart.clone(), "alternate".to_string()));
-        assert_eq!(MimeMultipartDigest.to_content_type(),    (multipart.clone(), "digest".to_string()));
-        assert_eq!(MimeMultipartParallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
+        assert_eq!(MimeMultipartType::Mixed.to_content_type(),     (multipart.clone(), "mixed".to_string()));
+        assert_eq!(MimeMultipartType::Alternate.to_content_type(), (multipart.clone(), "alternate".to_string()));
+        assert_eq!(MimeMultipartType::Digest.to_content_type(),    (multipart.clone(), "digest".to_string()));
+        assert_eq!(MimeMultipartType::Parallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
     }
 }
