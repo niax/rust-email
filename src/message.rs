@@ -192,7 +192,7 @@ impl MimeMessage {
             Some(bytes) => {
                 let charset = match content_type {
                     Some(ct) => {
-                        ct.params.find_copy(&"charset".to_string())
+                        ct.params.get(&"charset".to_string()).cloned()
                     }
                     _ => None,
                 }.unwrap_or("us-ascii".to_string());
@@ -229,7 +229,7 @@ impl MimeMessage {
             let content_type = content_type.unwrap();
             // Pull out the major mime type and the boundary (if it exists)
             let (mime_type, sub_mime_type) = content_type.content_type;
-            let boundary = content_type.params.find(&"boundary".to_string());
+            let boundary = content_type.params.get(&"boundary".to_string());
 
             let mut message = match mime_type.as_slice() {
                 // Only consider a multipart message if we have a boundary, otherwise don't
