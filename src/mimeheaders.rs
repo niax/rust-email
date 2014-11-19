@@ -40,15 +40,15 @@ impl FromHeader for MimeContentTypeHeader {
 #[deriving(Show,PartialEq,Eq)]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
-    MimeContentIdentity,
+    Identity,
     /// Content transfered using the quoted-printable encoding.
     ///
     /// This encoding is defined in RFC 2045 Section 6.7
-    MimeContentQuotedPrintable,
+    QuotedPrintable,
     /// Content transfered as BASE64
     ///
     /// This encoding is defined in RFC 2045 Section 6.8
-    MimeContentBase64,
+    Base64,
 }
 
 impl MimeContentTransferEncoding {
@@ -58,9 +58,9 @@ impl MimeContentTransferEncoding {
     /// transfer encoding is the Identity encoding.
     pub fn decode(&self, input: &String) -> Option<Vec<u8>> {
         match *self {
-            MimeContentIdentity => Some(input.clone().into_bytes()),
-            MimeContentQuotedPrintable => decode_q_encoding(input.as_slice()).ok(),
-            MimeContentBase64 => input.as_slice().from_base64().ok(),
+            MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
+            MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(input.as_slice()).ok(),
+            MimeContentTransferEncoding::Base64 => input.as_slice().from_base64().ok(),
         }
     }
 }
@@ -69,9 +69,9 @@ impl FromHeader for MimeContentTransferEncoding {
     fn from_header(value: String) -> Option<MimeContentTransferEncoding> {
         let lower = value.into_ascii_lower();
         match lower.as_slice() {
-            "7bit" | "8bit" | "binary" => Some(MimeContentIdentity),
-            "quoted-printable" => Some(MimeContentQuotedPrintable),
-            "base64" => Some(MimeContentBase64),
+            "7bit" | "8bit" | "binary" => Some(MimeContentTransferEncoding::Identity),
+            "quoted-printable" => Some(MimeContentTransferEncoding::QuotedPrintable),
+            "base64" => Some(MimeContentTransferEncoding::Base64),
             _ => None,
         }
     }
@@ -154,13 +154,13 @@ mod tests {
     #[test]
     fn test_content_transfer_parse() {
         let tests = vec![
-            ("base64", Some(MimeContentBase64)),
-            ("quoted-printable", Some(MimeContentQuotedPrintable)),
-            ("7bit", Some(MimeContentIdentity)),
-            ("8bit", Some(MimeContentIdentity)),
-            ("binary", Some(MimeContentIdentity)),
+            ("base64", Some(MimeContentTransferEncoding::Base64)),
+            ("quoted-printable", Some(MimeContentTransferEncoding::QuotedPrintable)),
+            ("7bit", Some(MimeContentTransferEncoding::Identity)),
+            ("8bit", Some(MimeContentTransferEncoding::Identity)),
+            ("binary", Some(MimeContentTransferEncoding::Identity)),
             // Check for case insensitivity
-            ("BASE64", Some(MimeContentBase64)),
+            ("BASE64", Some(MimeContentTransferEncoding::Base64)),
             // Check for fail case
             ("lkasjdl", None),
         ];
@@ -182,12 +182,12 @@ mod tests {
     fn test_content_transfer_decode() {
         let tests = vec![
             ContentTransferDecodeTest {
-                encoding: MimeContentIdentity,
+                encoding: MimeContentTransferEncoding::Identity,
                 input: "foo",
                 output: Some(vec![102, 111, 111]),
             },
             ContentTransferDecodeTest {
-                encoding: MimeContentQuotedPrintable,
+                encoding: MimeContentTransferEncoding::QuotedPrintable,
                 input: "foo=\r\nbar\r\nbaz",
                 output: Some(vec![
                     102, 111, 111, 98, 97, 114, 13, 10,   // foobar
@@ -195,7 +195,7 @@ mod tests {
                 ]),
             },
             ContentTransferDecodeTest {
-                encoding: MimeContentBase64,
+                encoding: MimeContentTransferEncoding::Base64,
                 input: "Zm9vCmJhcgpi\r\nYXoKcXV4Cg==",
                 output: Some(vec![
                     102, 111, 111, 10, // foo
@@ -206,7 +206,7 @@ mod tests {
             },
             // Bad base64 content
             ContentTransferDecodeTest {
-                encoding: MimeContentBase64,
+                encoding: MimeContentTransferEncoding::Base64,
                 input: "/?#",
                 output: None,
             },
