@@ -1,6 +1,6 @@
 extern crate email;
 
-use email::{MimeMessage, Header};
+use email::{MimeMessage, Header, Address};
 
 fn main() {
     let parts = vec![
@@ -14,7 +14,13 @@ fn main() {
         message.children.push(part);
     }
 
-    message.headers.insert(Header::new("Foo".to_string(), "bar".to_string()));
+    message.headers.insert(
+        Header::new_with_value("To".to_string(), vec![
+            Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::mailbox_with_name("Mr Black".to_string(), "mafia_black@example.org".to_string()),
+        ]).unwrap()
+    );
 
     println!("{}", message.to_string());
 }

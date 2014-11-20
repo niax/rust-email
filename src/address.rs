@@ -2,7 +2,7 @@ use std::fmt;
 use std::from_str::FromStr;
 
 use super::rfc5322::Rfc5322Parser;
-use super::header::FromHeader;
+use super::header::{FromHeader, ToHeader};
 
 
 /// Represents an RFC 5322 Address
@@ -43,7 +43,7 @@ impl fmt::Show for Address {
                     }
                     mailbox_list.push_str(mbox.to_string().as_slice());
                 }
-                write!(fmt, "{}: {}", name, mailbox_list)
+                write!(fmt, "{}: {};", name, mailbox_list)
             }
         }
     }
@@ -94,6 +94,22 @@ impl FromStr for Mailbox {
 impl FromHeader for Vec<Address> {
     fn from_header(value: String) -> Option<Vec<Address>> {
         Some(AddressParser::new(value.as_slice()).parse_address_list())
+    }
+}
+
+impl ToHeader for Vec<Address> {
+    fn to_header(value: Vec<Address>) -> Option<String> {
+        let mut header = String::new();
+
+        for addr in value.iter() {
+            header.push_str(format!("{}, ", addr).as_slice());
+        }
+
+        // Clear up the final ", "
+        let real_len = header.len() - 2;
+        header.truncate(real_len);
+
+        Some(header)
     }
 }
 
@@ -268,13 +284,13 @@ mod tests {
     #[test]
     fn test_address_group_to_string() {
         let addr = Address::group("undisclosed recipients".to_string(), vec![]);
-        assert_eq!(addr.to_string(), "undisclosed recipients: ".to_string());
+        assert_eq!(addr.to_string(), "undisclosed recipients: ;".to_string());
 
         let addr = Address::group("group test".to_string(), vec![
             Mailbox::new("joe@example.org".to_string()),
             Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
-        assert_eq!(addr.to_string(), "group test: <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
+        assert_eq!(addr.to_string(), "group test: <joe@example.org>, \"John Doe\" <john@example.org>;".to_string());
     }
 
     #[test]
@@ -322,6 +338,18 @@ mod tests {
             Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
             Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
+    }
+
+    #[test]
+    fn test_to_header_generation() {
+        let addresses = vec![
+            Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+        ];
+
+        let header = Header::new_with_value("From:".to_string(), addresses).unwrap();
+        assert_eq!(header.get_value::<String>().unwrap(),
+                   "\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
     }
 
 }

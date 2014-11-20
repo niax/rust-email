@@ -10,9 +10,30 @@ pub trait FromHeader {
     fn from_header(value: String) -> Option<Self>;
 }
 
+/// Trait for converting from a Rust type into a Header value.
+pub trait ToHeader {
+    /// Turn the `value` into a String suitable for being used in
+    /// a message header.
+    ///
+    /// Returns None if the value cannot be stringified.
+    fn to_header(value: Self) -> Option<String>;
+}
+
 impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
         Some(value)
+    }
+}
+
+impl ToHeader for String {
+    fn to_header(value: String) -> Option<String> {
+        Some(value)
+    }
+}
+
+impl<'a> ToHeader for &'a str {
+    fn to_header(value: &'a str) -> Option<String> {
+        Some(value.to_string())
     }
 }
 
@@ -31,6 +52,14 @@ impl Header {
             name: name,
             value: value,
         }
+    }
+
+    /// Creates a new Header for the given `name` and `value`,
+    /// as converted through the `ToHeader` trait.
+    ///
+    /// Returns None if the value failed to be converted.
+    pub fn new_with_value<T: ToHeader>(name: String, value: T) -> Option<Header> {
+        ToHeader::to_header(value).map(|val| { Header::new(name.clone(), val) })
     }
 
     /// Get the value represented by this header, as parsed
@@ -127,6 +156,20 @@ mod tests {
         let header = Header::new("Test".to_string(), "Value".to_string());
         let string_value: String = header.get_value().unwrap();
         assert_eq!(string_value, "Value".to_string());
+    }
+
+    #[test]
+    fn test_to_header_string() {
+        let header = Header::new_with_value("Test".to_string(), "Value".to_string()).unwrap();
+        let header_value = header.get_value::<String>().unwrap();
+        assert_eq!(header_value, "Value".to_string());
+    }
+
+    #[test]
+    fn test_to_header_str() {
+        let header = Header::new_with_value("Test".to_string(), "Value").unwrap();
+        let header_value = header.get_value::<String>().unwrap();
+        assert_eq!(header_value, "Value".to_string());
     }
 
     #[test]
