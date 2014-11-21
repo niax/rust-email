@@ -16,17 +16,17 @@ pub enum Address {
 
 impl Address {
     /// Shortcut function to make a new Mailbox with the given address
-    pub fn mailbox(address: String) -> Address {
+    pub fn new_mailbox(address: String) -> Address {
         Address::Mailbox(Mailbox::new(address))
     }
 
     /// Shortcut function to make a new Mailbox with the address and given-name
-    pub fn mailbox_with_name(name: String, address: String) -> Address {
+    pub fn new_mailbox_with_name(name: String, address: String) -> Address {
         Address::Mailbox(Mailbox::new_with_name(name, address))
     }
 
     /// Shortcut function to make a new Group with a collection of mailboxes
-    pub fn group(name: String, mailboxes: Vec<Mailbox>) -> Address {
+    pub fn new_group(name: String, mailboxes: Vec<Mailbox>) -> Address {
         Address::Group(name, mailboxes)
     }
 }
@@ -284,10 +284,10 @@ mod tests {
 
     #[test]
     fn test_address_group_to_string() {
-        let addr = Address::group("undisclosed recipients".to_string(), vec![]);
+        let addr = Address::new_group("undisclosed recipients".to_string(), vec![]);
         assert_eq!(addr.to_string(), "undisclosed recipients: ;".to_string());
 
-        let addr = Address::group("group test".to_string(), vec![
+        let addr = Address::new_group("group test".to_string(), vec![
             Mailbox::new("joe@example.org".to_string()),
             Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
@@ -314,18 +314,18 @@ mod tests {
     fn test_address_list_parsing() {
         let mut parser = AddressParser::new("\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>");
         assert_eq!(parser.parse_address_list(), vec![
-            Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
-            Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
 
         let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>; <third@example.org>, <fourth@example.org>");
         assert_eq!(parser.parse_address_list(), vec![
-            Address::group("A Group".to_string(), vec![
+            Address::new_group("A Group".to_string(), vec![
                     Mailbox::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
                     Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
             ]),
-            Address::mailbox("third@example.org".to_string()),
-            Address::mailbox("fourth@example.org".to_string()),
+            Address::new_mailbox("third@example.org".to_string()),
+            Address::new_mailbox("fourth@example.org".to_string()),
         ]);
     }
 
@@ -336,16 +336,16 @@ mod tests {
             "\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
         let addresses: Vec<Address> = header.get_value().unwrap();
         assert_eq!(addresses, vec![
-            Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
-            Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
     }
 
     #[test]
     fn test_to_header_generation() {
         let addresses = vec![
-            Address::mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
-            Address::mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ];
 
         let header = Header::new_with_value("From:".to_string(), addresses).unwrap();
