@@ -3,6 +3,10 @@
 name = "email"
 version = "0.0.1"
 authors = ["Nicholas Hollett <niax@niax.co.uk>"]
+description = "Implementation of RFC 5322 email messages"
+repository = "https://github.com/niax/rust-email"
+documentation = "http://www.rust-ci.org/niax/rust-email/doc/email/"
+license = "MIT"
 
-[dependencies.encoding]
-git = "https://github.com/lifthrasiir/rust-encoding.git"
+[dependencies]
+encoding = "~0.2.3"
