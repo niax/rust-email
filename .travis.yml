@@ -11,4 +11,4 @@ script:
     - cargo doc
 
 after_script:
-    - cd target && curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh 
+    - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh 
