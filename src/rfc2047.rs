@@ -5,7 +5,7 @@ use std::num::from_str_radix;
 use serialize::base64::FromBase64;
 
 use encoding::label::encoding_from_whatwg_label;
-use encoding::DecodeReplace;
+use encoding::DecoderTrap;
 
 /// Decode an RFC 2047 string (`s`) into a Rust String.
 ///
@@ -32,7 +32,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         match (bytes, decoder) {
             (Ok(b), Some(d)) => {
-                d.decode(b.as_slice(), DecodeReplace).ok()
+                d.decode(b.as_slice(), DecoderTrap::Replace).ok()
             }
             _ => None,
         }

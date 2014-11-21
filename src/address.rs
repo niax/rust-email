@@ -1,5 +1,5 @@
 use std::fmt;
-use std::from_str::FromStr;
+use std::str::FromStr;
 
 use super::rfc5322::Rfc5322Parser;
 use super::header::{FromHeader, ToHeader};
@@ -9,32 +9,33 @@ use super::header::{FromHeader, ToHeader};
 #[deriving(PartialEq, Eq)]
 pub enum Address {
     /// A "regular" email address
-    AddressMailbox(Mailbox),
+    Mailbox(Mailbox),
     /// A named group of mailboxes
-    AddressGroup(String, Vec<Mailbox>),
+    Group(String, Vec<Mailbox>),
 }
 
 impl Address {
     /// Shortcut function to make a new Mailbox with the given address
     pub fn mailbox(address: String) -> Address {
-        AddressMailbox(Mailbox::new(address))
+        Address::Mailbox(Mailbox::new(address))
     }
 
     /// Shortcut function to make a new Mailbox with the address and given-name
     pub fn mailbox_with_name(name: String, address: String) -> Address {
-        AddressMailbox(Mailbox::new_with_name(name, address))
+        Address::Mailbox(Mailbox::new_with_name(name, address))
     }
 
+    /// Shortcut function to make a new Group with a collection of mailboxes
     pub fn group(name: String, mailboxes: Vec<Mailbox>) -> Address {
-        AddressGroup(name, mailboxes)
+        Address::Group(name, mailboxes)
     }
 }
 
 impl fmt::Show for Address {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            AddressMailbox(ref mbox) => mbox.fmt(fmt),
-            AddressGroup(ref name, ref mboxes) => {
+            Address::Mailbox(ref mbox) => mbox.fmt(fmt),
+            Address::Group(ref name, ref mboxes) => {
                 let mut mailbox_list = String::new();
                 for mbox in mboxes.iter() {
                     if mailbox_list.len() > 0 {
@@ -137,7 +138,7 @@ impl<'s> AddressParser<'s> {
                 self.p.pop_position();
 
                 entry = match self.parse_mailbox() {
-                    Some(mailbox) => Some(AddressMailbox(mailbox)),
+                    Some(mailbox) => Some(Address::Mailbox(mailbox)),
                     None => None,
                 }
             }
@@ -176,7 +177,7 @@ impl<'s> AddressParser<'s> {
                     }
                 }
 
-                Some(AddressGroup(name.unwrap(), mailboxes))
+                Some(Address::Group(name.unwrap(), mailboxes))
             }
         } else {
             None
@@ -298,7 +299,7 @@ mod tests {
         let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>,john@example.org;");
         let addr = parser.parse_group().unwrap();
         match addr {
-            AddressGroup(name, mboxes) => {
+            Address::Group(name, mboxes) => {
                 assert_eq!(name, "A Group".to_string());
                 assert_eq!(mboxes, vec![
                     Mailbox::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
