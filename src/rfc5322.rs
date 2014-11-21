@@ -3,6 +3,8 @@
 use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
 
+pub const MIME_LINE_LENGTH: uint = 78u;
+
 trait Rfc5322Character {
     /// Is considered a special character by RFC 5322 Section 3.2.3
     fn is_special(&self) -> bool;
@@ -407,13 +409,16 @@ impl Rfc5322Builder {
            let c_range = s.char_range_at(pos);
            let c = c_range.ch;
 
-           if c == ' ' {
-               last_space = pos;
+           match c {
+               ' ' => { last_space = pos; },
+               '\r' => { cur_len = 0; },
+               '\n' => { cur_len = 0; },
+               _ => {},
            }
 
            cur_len += 1;
            // We've reached our line length, so
-           if cur_len >= 78 {
+           if cur_len >= MIME_LINE_LENGTH {
                // Emit the string from the last place we cut it to the
                // last space that we saw
                self.emit_raw(s.slice(last_cut, last_space));

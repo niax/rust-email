@@ -1,8 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::rfc5322::Rfc5322Parser;
-use super::header::{FromHeader, ToHeader};
+use super::rfc5322::{Rfc5322Parser, MIME_LINE_LENGTH};
+use super::header::{FromHeader, ToFoldedHeader};
 
 
 /// Represents an RFC 5322 Address
@@ -98,12 +98,22 @@ impl FromHeader for Vec<Address> {
     }
 }
 
-impl ToHeader for Vec<Address> {
-    fn to_header(value: Vec<Address>) -> Option<String> {
+impl ToFoldedHeader for Vec<Address> {
+    fn to_folded_header(start_pos: uint, value: Vec<Address>) -> Option<String> {
         let mut header = String::new();
 
+        let mut line_len = start_pos;
+
         for addr in value.iter() {
-            header.push_str(format!("{}, ", addr).as_slice());
+            let addr_str = format!("{}, ", addr);
+
+            if line_len + addr_str.len() > MIME_LINE_LENGTH {
+                // Adding this would cause a wrap, so wrap before!
+                header.push_str("\r\n\t");
+                line_len = 0;
+            }
+            line_len += addr_str.len();
+            header.push_str(addr_str.as_slice());
         }
 
         // Clear up the final ", "
@@ -353,4 +363,17 @@ mod tests {
                    "\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>".to_string());
     }
 
+    #[test]
+    fn test_to_header_line_wrap() {
+        let addresses = vec![
+            Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
+            Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
+            Address::new_mailbox_with_name("Mr Black".to_string(), "mafia_black@example.org".to_string()),
+        ];
+
+        let header = Header::new_with_value("To".to_string(), addresses).unwrap();
+        assert_eq!(header.to_string().as_slice(),
+                   "To: \"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>, \r\n\
+                   \t\"Mr Black\" <mafia_black@example.org>");
+    }
 }

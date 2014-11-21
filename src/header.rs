@@ -19,6 +19,24 @@ pub trait ToHeader {
     fn to_header(value: Self) -> Option<String>;
 }
 
+/// Trait for converting from a Rust time into a Header value
+/// that handles its own folding.
+///
+/// Be mindful that this trait does not mean that the value will
+/// not be folded later, rather that the type returns a value that
+/// should not be folded, given that the header value starts so far
+/// in to a line.
+pub trait ToFoldedHeader {
+    fn to_folded_header(start_pos: uint, value: Self) -> Option<String>;
+}
+
+impl<T: ToHeader> ToFoldedHeader for T {
+    fn to_folded_header(_: uint, value: T) -> Option<String> {
+        // We ignore the start_position because the thing will fold anyway.
+        ToHeader::to_header(value)
+    }
+}
+
 impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
         Some(value)
@@ -55,11 +73,12 @@ impl Header {
     }
 
     /// Creates a new Header for the given `name` and `value`,
-    /// as converted through the `ToHeader` trait.
+    /// as converted through the `ToHeader` or `ToFoldedHeader` trait.
     ///
     /// Returns None if the value failed to be converted.
-    pub fn new_with_value<T: ToHeader>(name: String, value: T) -> Option<Header> {
-        ToHeader::to_header(value).map(|val| { Header::new(name.clone(), val) })
+    pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> Option<Header> {
+        let header_len = name.len() + 2;
+        ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
     }
 
     /// Get the value represented by this header, as parsed
