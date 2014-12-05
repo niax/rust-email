@@ -3,14 +3,16 @@ rust: nightly
 
 env:
     global:
-        - secure: EUfEQIcFJtMALM7RDe0z3qxyjfxyQQR7qgoyEWSMsXewywrSmpF2JqAwnknOFBhKPxVVqboLugL0g1j+syTdPB2nx7pw2GoN/gAIRdyl6+8zdjeSKqDeMulv+3y3cOp02xv1pz3/3x4jyk9fMSKfl2/2PzNUv6rCZlD0UgMurAg=
+        - secure: "eH1ac1PDZ6F3wC2wOSCBJrEhWGn0jlvQUTGjpZ8in3QVbQis6ZjaW4E5bOVgJ0PKWpTpMfOFigxbvq9e8MjpWy9Ay11KEPvVBuaQcQ3QiW7l5y9RvY45UTXBWNtfavlb5+2lTFcm+t/KzVyPiEEkAx9k9qRIC1Yc/yKI4RW8EFE="
 
 script:
     - cargo build -v
     - cargo test -v
-    - cargo doc
+    - cargo doc -v
 
-after_script:
-    - cp -R target/doc doc
-    - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh 
-    - rm -r doc
+after_success: |
+    [ "$TRAVIS_BRANCH" = master ] &&
+    [ "$TRAVIS_PULL_REQUEST" = false ] &&
+    sudo pip install ghp-import &&
+    ghp-import -n target/doc &&
+    git push -fq https://${GH_TOKEN}@githum.com/${TRAVIS_REPO_SLUG}.git gh-pages

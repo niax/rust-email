@@ -5,4 +5,4 @@ rust-mime
 
 Rust implementation of RFC5322 (among others) messages.
 
-[Documentation](http://www.rust-ci.org/niax/rust-email/doc/email/)
+[Documentation](http://niax.github.io/rust-email/email/)
