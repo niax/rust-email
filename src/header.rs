@@ -1,6 +1,8 @@
 use std::fmt;
 use std::slice::Items;
 
+use super::rfc2047::decode_rfc2047;
+
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
 pub trait FromHeader {
@@ -39,7 +41,77 @@ impl<T: ToHeader> ToFoldedHeader for T {
 
 impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
-        Some(value)
+        #[deriving(Show)]
+        enum ParseState {
+            Normal(uint),
+            SeenEquals(uint),
+            SeenQuestion(uint, uint),
+        }
+
+        let mut state = ParseState::Normal(0u);
+        let mut decoded = String::new();
+        let mut pos = 0u;
+
+        let value_slice = value.as_slice();
+
+        while pos < value.len() {
+            let ch_range = value_slice.char_range_at(pos);
+            let c = ch_range.ch;
+
+            state = match (state, c) {
+                (ParseState::SeenQuestion(start_pos, 4), '=') => {
+                    // Go to decode if we've seen enough ?
+                    let part_decoded = decode_rfc2047(value_slice.slice(start_pos, ch_range.next));
+                    let to_push = match part_decoded {
+                        Some(ref s) => s.as_slice(),
+                        // Decoding failed, push the undecoded string in.
+                        None => value_slice.slice(start_pos, pos),
+                    };
+                    decoded.push_str(to_push);
+                    // Revert us to normal state, but starting at the next character.
+                    ParseState::Normal(ch_range.next)
+                },
+                (ParseState::SeenQuestion(start_pos, count), '?') => {
+                    ParseState::SeenQuestion(start_pos, count + 1)
+                },
+                (ParseState::SeenQuestion(start_pos, count), _) => {
+                    if count > 4 {
+                        // This isn't a RFC2047 sequence, so go back to a normal.
+                        ParseState::Normal(start_pos)
+                    } else {
+                        state
+                    }
+                }
+                (ParseState::SeenEquals(start_pos), '?') => {
+                    ParseState::SeenQuestion(start_pos, 1)
+                },
+                (ParseState::SeenEquals(start_pos), _) => {
+                    // This isn't a RFC2047 sequence, so go back to a normal.
+                    ParseState::Normal(start_pos)
+                }
+                (ParseState::Normal(start_pos), '=') => {
+                    if start_pos != pos {
+                        // Push all up to the =, if there is stuff to push.
+                        decoded.push_str(value_slice.slice(start_pos, pos));
+                    }
+                    ParseState::SeenEquals(pos)
+                },
+                (ParseState::Normal(_), _) => state,
+            };
+
+            pos = ch_range.next;
+        }
+
+        // Don't forget to push on whatever we have left
+        let last_start = match state {
+            ParseState::Normal(start_pos) => start_pos,
+            ParseState::SeenEquals(start_pos) => start_pos,
+            ParseState::SeenQuestion(start_pos, _) => start_pos,
+        };
+        decoded.push_str(value_slice.slice_from(last_start));
+
+
+        Some(decoded)
     }
 }
 
@@ -172,9 +244,39 @@ mod tests {
 
     #[test]
     fn test_string_get_value() {
-        let header = Header::new("Test".to_string(), "Value".to_string());
-        let string_value: String = header.get_value().unwrap();
-        assert_eq!(string_value, "Value".to_string());
+        struct HeaderTest<'s> {
+            input: &'s str,
+            result: Option<&'s str>,
+        }
+
+        let tests = vec![
+            HeaderTest {
+                input: "Value",
+                result: Some("Value"),
+            },
+            HeaderTest {
+                input: "=?ISO-8859-1?Q?Test=20text?=",
+                result: Some("Test text"),
+            },
+            HeaderTest {
+                input: "=?ISO-8859-1?Q?Multiple?= =?utf-8?b?ZW5jb2Rpbmdz?=",
+                result: Some("Multiple encodings"),
+            },
+            HeaderTest {
+                input: "Some things with =?utf-8?b?ZW5jb2Rpbmdz?=, other things without.",
+                result: Some("Some things with encodings, other things without."),
+            },
+            HeaderTest {
+                input: "Encoding =?utf-8?q?fail",
+                result: Some("Encoding =?utf-8?q?fail"),
+            },
+        ];
+
+        for test in tests.into_iter() {
+            let header = Header::new("Test".to_string(), test.input.to_string());
+            let string_value = header.get_value::<String>();
+            assert_eq!(string_value, test.result.map(|s| { s.to_string() }));
+        }
     }
 
     #[test]
