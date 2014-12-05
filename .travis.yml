@@ -3,7 +3,7 @@ rust: nightly
 
 env:
     global:
-        - secure: "eH1ac1PDZ6F3wC2wOSCBJrEhWGn0jlvQUTGjpZ8in3QVbQis6ZjaW4E5bOVgJ0PKWpTpMfOFigxbvq9e8MjpWy9Ay11KEPvVBuaQcQ3QiW7l5y9RvY45UTXBWNtfavlb5+2lTFcm+t/KzVyPiEEkAx9k9qRIC1Yc/yKI4RW8EFE="
+        - secure: "K6TAj7O5B1JM5kHwZIjZOIb1RezvZluuVFVlE70zcCw6psohdyPcFwthKSQ5DCA//AYrfPJUwA3TO2znM2VNE+7SJNlGC490WwycL6aAtHLo526S6IS00kQnwAQOJ5kIiYI24wbkG+sMJP8l3O3sMpZzCyLwMqv4pFaXHVOehGU="
 
 script:
     - cargo build -v
@@ -15,4 +15,4 @@ after_success: |
     [ "$TRAVIS_PULL_REQUEST" = false ] &&
     sudo pip install ghp-import &&
     ghp-import -n target/doc &&
-    git push -fq https://${GH_TOKEN}@githum.com/${TRAVIS_REPO_SLUG}.git gh-pages
+    git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages 2>/dev/null
