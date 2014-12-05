@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt;
+use std::iter::Map;
 use std::slice::Items;
+use std::rc::Rc;
 
 use super::rfc2047::decode_rfc2047;
 
@@ -177,36 +181,57 @@ impl fmt::Show for Header {
 #[deriving(Eq,PartialEq)]
 #[unstable]
 pub struct HeaderMap {
-    headers: Vec<Header>,
+    ordered_headers: Vec<Rc<Header>>,
+    headers: HashMap<String, Vec<Rc<Header>>>,
 }
 
 impl HeaderMap {
     #[unstable]
-    pub fn new() -> HeaderMap{
+    pub fn new() -> HeaderMap {
         HeaderMap {
-            headers: Vec::new(),
+            ordered_headers: Vec::new(),
+            headers: HashMap::new(),
         }
     }
 
     /// Adds a header to the collection
     #[unstable]
     pub fn insert(&mut self, header: Header) {
-        self.headers.push(header);
+        let header_name = header.name.clone();
+        let rc = Rc::new(header);
+        // Add to the ordered list of headers
+        self.ordered_headers.push(rc.clone());
+        
+        // and to the mapping between header names and values.
+        match self.headers.entry(header_name) {
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().push(rc.clone());
+            },
+            Entry::Vacant(entry) => {
+                // There haven't been any headers with this name
+                // as of yet, so make a new list and push it in.
+                let mut header_list = Vec::new();
+                header_list.push(rc.clone());
+                entry.set(header_list);
+            },
+        };
     }
 
     /// Get an Iterator over the collection of headers.
     #[unstable]
-    pub fn iter(&self) -> Items<Header> {
-        self.headers.iter()
+    pub fn iter(&self) -> Map<&Rc<Header>, &Header, Items<Rc<Header>>> {
+        self.ordered_headers.iter()
+                            .map(|rc| { rc.deref() })
     }
 
-    /// Get the last value of the header
+    /// Get the last value of the header with `name`
     #[unstable]
     pub fn get(&self, name: String) -> Option<&Header> {
-        self.iter().filter(|h| { h.name == name }).last()
+        self.headers.get(&name).map(|headers| { headers.last().unwrap() })
+                               .map(|rc| { rc.deref() })
     }
 
-    /// Get the last value of the header, as a decoded type.
+    /// Get the last value of the header with `name`, as a decoded type.
     #[unstable]
     pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
         match self.get(name) {
@@ -216,16 +241,18 @@ impl HeaderMap {
     }
 
     #[unstable]
+    /// Get the number of headers within this map.
     pub fn len(&self) -> uint {
-        self.headers.len()
+        self.ordered_headers.len()
     }
 
     #[unstable]
-    pub fn find(&self, key: &String) -> Option<Vec<&Header>> {
-        let headers: Vec<&Header> = self.iter().filter(|h| { &h.name == key }).collect();
-
-        if headers.len() > 0u {
-            Some(headers)
+    /// Find a list of headers of `name`, `None` if there
+    /// are no headers with that name.
+    pub fn find(&self, name: &String) -> Option<Vec<&Header>> {
+        let headers_rcs = self.headers.get(name);
+        if headers_rcs.is_some() {
+            Some(headers_rcs.unwrap().iter().map(|rc| { rc.deref() }).collect())
         } else {
             None
         }
