@@ -65,7 +65,7 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                 inner_pos
             }
             _ => {
-                result.push(c.ch.to_ascii().to_byte());
+                result.push(c.ch.to_ascii().as_byte());
                 c.next
             }
         }

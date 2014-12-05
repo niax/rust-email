@@ -357,8 +357,8 @@ mod tests {
         children: Vec<MessageTestResult<'s>>,
     }
 
-    impl<'s> Equiv<MimeMessage> for MessageTestResult<'s> {
-        fn equiv(&self, other: &MimeMessage) -> bool {
+    impl<'s> MessageTestResult<'s> {
+        fn matches(&self, other: &MimeMessage) -> bool {
             let mut headers = HeaderMap::new();
             for &(name, value) in self.headers.iter() {
                 let header = Header::new(name.to_string(), value.to_string());
@@ -372,7 +372,7 @@ mod tests {
             let mut children_match = self.children.len() == other.children.len();
             if children_match {
                 for (index, child) in self.children.iter().enumerate() {
-                    if !child.equiv(&other.children[index]) {
+                    if !child.matches(&other.children[index]) {
                         children_match = false;
                         break;
                     }
@@ -505,7 +505,7 @@ mod tests {
             println!("--- Next test: {}", test.name);
             let message = MimeMessage::parse(test.input);
             let result = match (test.output, message) {
-                (Some(ref expected), Some(ref given)) => expected.equiv(given),
+                (Some(ref expected), Some(ref given)) => expected.matches(given),
                 (None, None) => true,
                 (_, _) => false,
             };
