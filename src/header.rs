@@ -5,6 +5,7 @@ use super::rfc2047::decode_rfc2047;
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
+#[stable]
 pub trait FromHeader {
     /// Parse the `value` of the header.
     ///
@@ -13,6 +14,7 @@ pub trait FromHeader {
 }
 
 /// Trait for converting from a Rust type into a Header value.
+#[stable]
 pub trait ToHeader {
     /// Turn the `value` into a String suitable for being used in
     /// a message header.
@@ -28,6 +30,7 @@ pub trait ToHeader {
 /// not be folded later, rather that the type returns a value that
 /// should not be folded, given that the header value starts so far
 /// in to a line.
+#[unstable]
 pub trait ToFoldedHeader {
     fn to_folded_header(start_pos: uint, value: Self) -> Option<String>;
 }
@@ -129,6 +132,7 @@ impl<'a> ToHeader for &'a str {
 
 /// Represents an RFC 822 Header
 #[deriving(PartialEq, Eq, Clone, Hash)]
+#[unstable]
 pub struct Header {
     /// The name of this header
     pub name: String,
@@ -137,6 +141,7 @@ pub struct Header {
 
 impl Header {
     /// Creates a new Header for the given `name` and `value`
+    #[unstable]
     pub fn new(name: String, value: String) -> Header {
         Header {
             name: name,
@@ -148,6 +153,7 @@ impl Header {
     /// as converted through the `ToHeader` or `ToFoldedHeader` trait.
     ///
     /// Returns None if the value failed to be converted.
+    #[unstable]
     pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> Option<Header> {
         let header_len = name.len() + 2;
         ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
@@ -155,6 +161,7 @@ impl Header {
 
     /// Get the value represented by this header, as parsed
     /// into whichever type `T`
+    #[unstable]
     pub fn get_value<T: FromHeader>(&self) -> Option<T> {
         FromHeader::from_header(self.value.clone())
     }
@@ -168,11 +175,13 @@ impl fmt::Show for Header {
 
 /// A collection of Headers
 #[deriving(Eq,PartialEq)]
+#[unstable]
 pub struct HeaderMap {
     headers: Vec<Header>,
 }
 
 impl HeaderMap {
+    #[unstable]
     pub fn new() -> HeaderMap{
         HeaderMap {
             headers: Vec::new(),
@@ -180,21 +189,25 @@ impl HeaderMap {
     }
 
     /// Adds a header to the collection
+    #[unstable]
     pub fn insert(&mut self, header: Header) {
         self.headers.push(header);
     }
 
     /// Get an Iterator over the collection of headers.
+    #[unstable]
     pub fn iter(&self) -> Items<Header> {
         self.headers.iter()
     }
 
     /// Get the last value of the header
+    #[unstable]
     pub fn get(&self, name: String) -> Option<&Header> {
         self.iter().filter(|h| { h.name == name }).last()
     }
 
     /// Get the last value of the header, as a decoded type.
+    #[unstable]
     pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
         match self.get(name) {
             Some(ref header) => header.get_value(),
@@ -202,10 +215,12 @@ impl HeaderMap {
         }
     }
 
+    #[unstable]
     pub fn len(&self) -> uint {
         self.headers.len()
     }
 
+    #[unstable]
     pub fn find(&self, key: &String) -> Option<Vec<&Header>> {
         let headers: Vec<&Header> = self.iter().filter(|h| { &h.name == key }).collect();
 

@@ -7,6 +7,7 @@ use super::header::{FromHeader, ToFoldedHeader};
 
 /// Represents an RFC 5322 Address
 #[deriving(PartialEq, Eq)]
+#[stable]
 pub enum Address {
     /// A "regular" email address
     Mailbox(Mailbox),
@@ -16,16 +17,19 @@ pub enum Address {
 
 impl Address {
     /// Shortcut function to make a new Mailbox with the given address
+    #[unstable]
     pub fn new_mailbox(address: String) -> Address {
         Address::Mailbox(Mailbox::new(address))
     }
 
     /// Shortcut function to make a new Mailbox with the address and given-name
+    #[unstable]
     pub fn new_mailbox_with_name(name: String, address: String) -> Address {
         Address::Mailbox(Mailbox::new_with_name(name, address))
     }
 
     /// Shortcut function to make a new Group with a collection of mailboxes
+    #[unstable]
     pub fn new_group(name: String, mailboxes: Vec<Mailbox>) -> Address {
         Address::Group(name, mailboxes)
     }
@@ -52,6 +56,7 @@ impl fmt::Show for Address {
 
 /// Represents an RFC 5322 mailbox
 #[deriving(PartialEq, Eq)]
+#[stable]
 pub struct Mailbox {
     /// The given name for this address
     pub name: Option<String>,
@@ -61,6 +66,7 @@ pub struct Mailbox {
 
 impl Mailbox {
     /// Create a new Mailbox without a display name
+    #[stable]
     pub fn new(address: String) -> Mailbox {
         Mailbox {
             name: None,
@@ -69,6 +75,7 @@ impl Mailbox {
     }
 
     /// Create a new Mailbox with a display name
+    #[stable]
     pub fn new_with_name(name: String, address: String) -> Mailbox {
         Mailbox {
             name: Some(name),
@@ -124,17 +131,20 @@ impl ToFoldedHeader for Vec<Address> {
     }
 }
 
+#[stable]
 pub struct AddressParser<'s> {
     p: Rfc5322Parser<'s>,
 }
 
 impl<'s> AddressParser<'s> {
+    #[stable]
     pub fn new(s: &str) -> AddressParser {
         AddressParser {
             p: Rfc5322Parser::new(s)
         }
     }
 
+    #[stable]
     pub fn parse_address_list(&mut self) -> Vec<Address> {
         let mut result = Vec::new();
 
@@ -167,6 +177,7 @@ impl<'s> AddressParser<'s> {
         result
     }
 
+    #[stable]
     pub fn parse_group(&mut self) -> Option<Address> {
         let mut mailboxes = Vec::new();
         let name = self.p.consume_phrase(false);
@@ -194,6 +205,7 @@ impl<'s> AddressParser<'s> {
         }
     }
 
+    #[stable]
     pub fn parse_mailbox(&mut self) -> Option<Mailbox> {
         // Push the current position of the parser so we can back out later
         self.p.push_position();

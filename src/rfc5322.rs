@@ -3,6 +3,7 @@
 use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
 
+#[stable]
 pub const MIME_LINE_LENGTH: uint = 78u;
 
 trait Rfc5322Character {
@@ -51,6 +52,7 @@ impl Rfc5322Character for char {
 /// It also implements a stack for tracking the position.
 /// This allows the simple implementation of backtracking, by pushing the position
 /// before a test and popping it if the test should fail.
+#[unstable]
 pub struct Rfc5322Parser<'s> {
     s: &'s str,
     pos: uint,
@@ -59,6 +61,7 @@ pub struct Rfc5322Parser<'s> {
 
 impl<'s> Rfc5322Parser<'s> {
     /// Make a new parser, initialized with the given string. 
+    #[unstable]
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
             s: source,
@@ -68,11 +71,13 @@ impl<'s> Rfc5322Parser<'s> {
     }
 
     /// Push the current position onto the stack.
+    #[unstable]
     pub fn push_position(&mut self) {
         self.pos_stack.push(self.pos);
     }
 
     /// Move the position back to the last entry pushed
+    #[unstable]
     pub fn pop_position(&mut self) {
         match self.pos_stack.pop() {
             Some(pos) => { self.pos = pos; },
@@ -89,6 +94,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// `fields = *field
     /// body = text
     /// message = fields CRLF body`
+    #[unstable]
     pub fn consume_message(&mut self) -> Option<(HeaderMap, String)> {
         let mut headers = HeaderMap::new();
         while !self.eof() {
@@ -122,6 +128,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// `ftext = "!".."9" / ";".."~"
     /// field-name = 1*ftext
     /// field = field-name *LWSP ":" unstructured`
+    #[unstable]
     pub fn consume_header(&mut self) -> Option<Header> {
         let last_pos = self.pos;
         // Parse field-name
@@ -146,6 +153,7 @@ impl<'s> Rfc5322Parser<'s> {
     }
 
     /// Consume an unstructured from the input.
+    #[unstable]
     pub fn consume_unstructured(&mut self) -> String {
         let mut result = String::new();
         while !self.eof() {
@@ -169,6 +177,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// This is a CRLF followed by one or more whitespace character.
     ///
     /// Returns true if whitespace was consume
+    #[unstable]
     pub fn consume_folding_whitespace(&mut self) -> bool {
         // Remember where we were, in case this isn't folding whitespace
         let current_position = self.pos;
@@ -203,6 +212,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// `word = atom / quoted-string`
     ///
     /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
+    #[unstable]
     pub fn consume_word(&mut self, allow_dot_atom: bool) -> Option<String> {
         if self.peek() == '"' {
             // Word is a quoted string
@@ -223,6 +233,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// `phrase = 1*word`
     ///
     /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
+    #[unstable]
     pub fn consume_phrase(&mut self, allow_dot_atom: bool) -> Option<String> {
         let mut phrase = String::new();
 
@@ -273,6 +284,7 @@ impl<'s> Rfc5322Parser<'s> {
     }
 
     /// Consume a quoted string from the input
+    #[unstable]
     pub fn consume_quoted_string(&mut self) -> Option<String> {
         if self.peek() != '"' {
             // Fail if we were called wrong
@@ -319,6 +331,7 @@ impl<'s> Rfc5322Parser<'s> {
     ///
     /// If `allow_dot` is true, then also allow '.' to be considered as an
     /// atext character.
+    #[unstable]
     pub fn consume_atom(&mut self, allow_dot: bool) -> Option<String> {
         if !self.peek().is_atext() {
             None
@@ -330,12 +343,14 @@ impl<'s> Rfc5322Parser<'s> {
     }
 
     /// Consume LWSP (Linear whitespace)
+    #[unstable]
     pub fn consume_linear_whitespace(&mut self) {
         self.consume_while(|c| { c == '\t' || c == ' ' });
     }
 
     /// Consume a single character from the input.
     #[inline]
+    #[unstable]
     pub fn consume_char(&mut self) -> char {
         if self.eof() { 
             // TODO: Consider making this return an Option<char>
@@ -354,6 +369,7 @@ impl<'s> Rfc5322Parser<'s> {
     ///
     /// Returns the string of characters that returned true for the test function.
     #[inline]
+    #[unstable]
     pub fn consume_while(&mut self, test: |char| -> bool) -> String {
         let start_pos = self.pos;
         while !self.eof() && test(self.peek()) {
@@ -366,12 +382,14 @@ impl<'s> Rfc5322Parser<'s> {
     ///
     /// Note that this does not do any bounds checking.
     #[inline]
+    #[unstable]
     pub fn peek(&self) -> char {
         self.s.char_at(self.pos)
     }
 
     /// Returns true if we have reached the end of the input.
     #[inline]
+    #[unstable]
     pub fn eof(&self) -> bool {
         self.pos >= self.s.len()
     }
@@ -379,26 +397,31 @@ impl<'s> Rfc5322Parser<'s> {
 }
 
 /// Type for constructing RFC 5322 messages
+#[experimental]
 pub struct Rfc5322Builder {
     result: String
 }
 
 impl Rfc5322Builder {
     /// Make a new builder, with an empty string
+    #[experimental]
     pub fn new() -> Rfc5322Builder {
         Rfc5322Builder {
             result: "".to_string(),
         }
     }
 
+    #[experimental]
     pub fn result(&self) -> &String {
         &self.result
     }
 
+    #[experimental]
     pub fn emit_raw(&mut self, s: &str) {
         self.result.push_str(s);
     }
 
+    #[experimental]
     pub fn emit_folded(&mut self, s: &str) {
        let mut pos = 0u;
        let mut cur_len = 0u;

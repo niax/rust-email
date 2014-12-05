@@ -13,6 +13,7 @@ use encoding::DecoderTrap;
 
 /// Marks the type of a multipart message
 #[deriving(Eq,PartialEq,Show)]
+#[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
     ///
@@ -37,6 +38,7 @@ pub enum MimeMultipartType {
 
 impl MimeMultipartType {
     /// Returns the appropriate `MimeMultipartType` for the given MimeContentType
+    #[stable]
     pub fn from_content_type(ct: MimeContentType) -> Option<MimeMultipartType> {
         let (major, minor) = ct;
         match (major.as_slice(), minor.as_slice()) {
@@ -49,6 +51,7 @@ impl MimeMultipartType {
     }
 
     /// Returns a MimeContentType that represents this multipart type.
+    #[stable]
     pub fn to_content_type(&self) -> MimeContentType {
         let multipart = "multipart".to_string();
         match *self {
@@ -61,6 +64,7 @@ impl MimeMultipartType {
 }
 
 /// Represents a MIME message
+#[unstable]
 pub struct MimeMessage {
     /// The headers for this message
     pub headers: HeaderMap,
@@ -76,6 +80,7 @@ pub struct MimeMessage {
 }
 
 impl MimeMessage {
+    #[unstable]
     pub fn new(body: String) -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
@@ -87,6 +92,7 @@ impl MimeMessage {
         }
     }
 
+    #[experimental]
     pub fn new_with_children(body: String, message_type: MimeMultipartType, children: Vec<MimeMessage>) -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
@@ -98,6 +104,7 @@ impl MimeMessage {
         }
     }
 
+    #[experimental]
     pub fn new_with_boundary(body: String,
                              message_type: MimeMultipartType,
                              children: Vec<MimeMessage>,
@@ -117,6 +124,7 @@ impl MimeMessage {
     /// Recurses down into each message, supporting an unlimited depth of messages.
     ///
     /// Be warned that each sub-message that fails to be parsed will be thrown away.
+    #[unstable]
     pub fn parse(s: &str) -> Option<MimeMessage> {
         let mut parser = Rfc5322Parser::new(s);
         match parser.consume_message() {
@@ -131,6 +139,7 @@ impl MimeMessage {
     ///
     /// This will also set the Content-Type header appropriately.
     /// If the message_type is not set, it will default to multipart/mixed.
+    #[experimental]
     pub fn boundary(&mut self) -> String {
         if self.boundary.is_none() {
             if self.message_type.is_none() {
@@ -145,6 +154,7 @@ impl MimeMessage {
         self.boundary.clone().unwrap()
     }
 
+    #[experimental]
     pub fn to_string(&mut self) -> String {
         let mut builder = Rfc5322Builder::new();
 
@@ -173,6 +183,7 @@ impl MimeMessage {
     }
 
     /// Decode the body of this message, as a series of bytes
+    #[experimental]
     pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
         let transfer_encoding: MimeContentTransferEncoding =
             self.headers.get_value("Content-Transfer-Encoding".to_string())
@@ -184,6 +195,7 @@ impl MimeMessage {
     ///
     /// This takes into account any charset as set on the `Content-Type` header,
     /// decoding the bytes with this character set.
+    #[experimental]
     pub fn decoded_body_string(&self) -> Option<String> {
         let content_type: Option<MimeContentTypeHeader> =
             self.headers.get_value("Content-Type".to_string());

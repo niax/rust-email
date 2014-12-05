@@ -11,6 +11,7 @@ use encoding::DecoderTrap;
 ///
 /// Will accept either "Q" encoding (RFC 2047 Section 4.2) or
 /// "B" encoding (BASE64)
+#[unstable]
 pub fn decode_rfc2047(s: &str) -> Option<String> {
     let parts: Vec<&str> = s.split('?').collect();
     if parts.len() != 5 || parts[0] != "=" || parts[4] != "=" {
@@ -39,6 +40,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
     }
 }
 
+#[stable]
 pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
 

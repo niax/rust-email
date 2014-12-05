@@ -8,9 +8,11 @@ use serialize::base64::FromBase64;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.
+#[stable]
 pub type MimeContentType = (String, String);
 
 /// Special header type for the Content-Type header.
+#[stable]
 pub struct MimeContentTypeHeader {
     /// The content type presented by this header
     pub content_type: MimeContentType,
@@ -38,6 +40,7 @@ impl FromHeader for MimeContentTypeHeader {
 
 /// Special header type for the Content-Transfer-Encoding header.
 #[deriving(Show,PartialEq,Eq)]
+#[stable]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
     Identity,
@@ -56,6 +59,7 @@ impl MimeContentTransferEncoding {
     ///
     /// Note that this will return a clone of the input's bytes if the
     /// transfer encoding is the Identity encoding.
+    #[unstable]
     pub fn decode(&self, input: &String) -> Option<Vec<u8>> {
         match *self {
             MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
