@@ -22,5 +22,5 @@ fn main() {
         ]).unwrap()
     );
 
-    println!("{}", message.to_string());
+    println!("{}", message.as_string());
 }

@@ -155,7 +155,7 @@ impl MimeMessage {
     }
 
     #[experimental]
-    pub fn to_string(&mut self) -> String {
+    pub fn as_string(&mut self) -> String {
         let mut builder = Rfc5322Builder::new();
 
         for header in self.headers.iter() {
@@ -172,7 +172,7 @@ impl MimeMessage {
                 builder.emit_raw(
                     format!("--{}\r\n{}\r\n",
                             boundary,
-                            part.to_string()).as_slice()
+                            part.as_string()).as_slice()
                 );
             }
 

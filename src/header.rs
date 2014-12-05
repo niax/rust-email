@@ -181,7 +181,15 @@ impl fmt::Show for Header {
 #[deriving(Eq,PartialEq)]
 #[unstable]
 pub struct HeaderMap {
+    // We store headers "twice" inside the HeaderMap.
+    //
+    // The first is as an ordered list of headers,
+    // which is used to iterate over.
     ordered_headers: Vec<Rc<Header>>,
+    // The second is as a mapping between header names
+    // and all of the headers with that name.
+    //
+    // This allows quick retrival of a header by name.
     headers: HashMap<String, Vec<Rc<Header>>>,
 }
 
