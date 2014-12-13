@@ -48,7 +48,7 @@ impl<T: ToHeader> ToFoldedHeader for T {
 
 impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
-        #[deriving(Show)]
+        #[deriving(Show,Copy)]
         enum ParseState {
             Normal(uint),
             SeenEquals(uint),

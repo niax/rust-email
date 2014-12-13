@@ -12,7 +12,7 @@ use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
 
 /// Marks the type of a multipart message
-#[deriving(Eq,PartialEq,Show)]
+#[deriving(Eq,PartialEq,Show,Copy)]
 #[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
