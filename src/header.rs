@@ -4,7 +4,15 @@ use std::fmt;
 use std::slice::Items;
 use std::rc::Rc;
 
+use chrono::{
+    DateTime,
+    FixedOffset,
+    Offset,
+    UTC,
+};
+
 use super::rfc2047::decode_rfc2047;
+use super::rfc822::Rfc822DateParser;
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
@@ -118,6 +126,20 @@ impl FromHeader for String {
 
 
         Some(decoded)
+    }
+}
+
+impl FromHeader for DateTime<FixedOffset> {
+    fn from_header(value: String) -> Option<DateTime<FixedOffset>> {
+        let mut parser = Rfc822DateParser::new(value.as_slice());
+        parser.consume_datetime()
+    }
+}
+
+impl FromHeader for DateTime<UTC> {
+    fn from_header(value: String) -> Option<DateTime<UTC>> {
+        let dt: Option<DateTime<FixedOffset>> = FromHeader::from_header(value);
+        dt.map(|i| i.with_offset(UTC))
     }
 }
 
@@ -293,6 +315,14 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
+    use chrono::{
+        DateTime,
+        FixedOffset,
+        Offset,
+        UTC,
+    };
+
+
     static SAMPLE_HEADERS: [(&'static str, &'static str), ..4] = [
         ("Test", "Value"),
         ("Test", "Value 2"),
@@ -348,6 +378,20 @@ mod tests {
             let string_value = header.get_value::<String>();
             assert_eq!(string_value, test.result.map(|s| { s.to_string() }));
         }
+    }
+
+    #[test]
+    fn test_datetime_get_value() {
+        let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
+        let dt_value = header.get_value::<DateTime<FixedOffset>>();
+        assert_eq!(dt_value, Some(FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7)));
+    }
+
+    #[test]
+    fn test_datetime_utc_get_value() {
+        let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
+        let dt_value = header.get_value::<DateTime<UTC>>();
+        assert_eq!(dt_value, Some(UTC.ymd(2014, 12, 17).and_hms(8, 35, 7)));
     }
 
     #[test]
