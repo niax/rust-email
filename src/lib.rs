@@ -7,6 +7,7 @@ extern crate encoding;
 pub use header::{
     Header,
     HeaderMap,
+    HeaderItems,
     FromHeader,
     ToHeader,
     ToFoldedHeader,

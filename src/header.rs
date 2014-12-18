@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
-use std::iter::Map;
 use std::slice::Items;
 use std::rc::Rc;
 
@@ -177,6 +176,29 @@ impl fmt::Show for Header {
     }
 }
 
+#[unstable]
+pub struct HeaderItems<'s> {
+    iter: Items<'s, Rc<Header>>
+}
+
+impl<'s> HeaderItems<'s> {
+    #[unstable]
+    fn new(iter: Items<'s, Rc<Header>>) -> HeaderItems<'s> {
+        HeaderItems {
+            iter: iter
+        }
+    }
+}
+
+impl<'s> Iterator<&'s Header> for HeaderItems<'s> {
+    fn next(&mut self) -> Option<&'s Header> {
+        match self.iter.next() {
+            Some(s) => Some(s.deref()),
+            None => None,
+        }
+    }
+}
+
 /// A collection of Headers
 #[deriving(Eq,PartialEq)]
 #[unstable]
@@ -227,9 +249,8 @@ impl HeaderMap {
 
     /// Get an Iterator over the collection of headers.
     #[unstable]
-    pub fn iter(&self) -> Map<&Rc<Header>, &Header, Items<Rc<Header>>> {
-        self.ordered_headers.iter()
-                            .map(|rc| { rc.deref() })
+    pub fn iter(&self) -> HeaderItems {
+        HeaderItems::new(self.ordered_headers.iter())
     }
 
     /// Get the last value of the header with `name`
