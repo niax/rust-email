@@ -576,7 +576,7 @@ mod tests {
         );
     }
 
-    bench_parser!(bench_simple, "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!")
+    bench_parser!(bench_simple, "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!");
     bench_parser!(bench_simple_multipart,
         "From: joe@example.org\r\n\
          To: john@example.org\r\n\
@@ -588,7 +588,7 @@ mod tests {
          --foo\r\n\
          Other\r\n\
          --foo"
-    )
+    );
     bench_parser!(bench_deep_multipart,
         "From: joe@example.org\r\n\
          To: john@example.org\r\n\
@@ -605,7 +605,7 @@ mod tests {
          --foo\r\n\
          Outside\r\n\
          --foo\r\n"
-    )
+    );
 
     struct MultipartParseTest<'s> {
         mime_type: (&'s str, &'s str),
