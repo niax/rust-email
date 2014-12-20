@@ -203,7 +203,7 @@ impl MimeMessage {
                 );
             }
 
-            builder.emit_raw(format!("--{}\r\n", self.boundary).as_slice());
+            builder.emit_raw(format!("--{}--\r\n", self.boundary).as_slice());
         }
 
         builder.result().clone()
