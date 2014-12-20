@@ -1,4 +1,4 @@
-use super::header::HeaderMap;
+use super::header::{HeaderMap, Header};
 use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
 use super::mimeheaders::{
     MimeContentType,
@@ -7,9 +7,12 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
+use std::rand::{task_rng, Rng};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
+
+const BOUNDARY_LENGTH: uint = 30;
 
 /// Marks the type of a multipart message
 #[deriving(Eq,PartialEq,Show,Copy)]
@@ -68,40 +71,47 @@ impl MimeMultipartType {
 pub struct MimeMessage {
     /// The headers for this message
     pub headers: HeaderMap,
+
     /// The content of this message
     ///
     /// Keep in mind that this is the undecoded form, so may be quoted-printable
     /// or base64 encoded.
     pub body: String,
+
+    /// The MIME multipart message type of this message, or `None` if the message
+    /// is not a multipart message.
     pub message_type: Option<MimeMultipartType>,
+
+    /// The sub-messages of this message
     pub children: Vec<MimeMessage>,
 
-    boundary: Option<String>,
+    /// The boundary used for MIME multipart messages
+    ///
+    /// This will always be set, even if the message only has a single part
+    pub boundary: String,
 }
 
 impl MimeMessage {
+    fn random_boundary() -> String {
+        task_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
+    }
+
     #[unstable]
     pub fn new(body: String) -> MimeMessage {
-        MimeMessage {
-            headers: HeaderMap::new(),
-            body: body,
-            message_type: None,
-            children: Vec::new(),
-
-            boundary: None,
-        }
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.update_headers();
+        message
     }
 
     #[experimental]
     pub fn new_with_children(body: String, message_type: MimeMultipartType, children: Vec<MimeMessage>) -> MimeMessage {
-        MimeMessage {
-            headers: HeaderMap::new(),
-            body: body,
-            message_type: Some(message_type),
-            children: children,
-
-            boundary: None,
-        }
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.message_type = Some(message_type);
+        message.children = children;
+        message.update_headers();
+        message
     }
 
     #[experimental]
@@ -109,15 +119,54 @@ impl MimeMessage {
                              message_type: MimeMultipartType,
                              children: Vec<MimeMessage>,
                              boundary: String) -> MimeMessage {
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.message_type = Some(message_type);
+        message.children = children;
+        message.boundary = boundary;
+        message.update_headers();
+        message
+    }
+
+    #[experimental]
+    pub fn new_blank_message() -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
-            body: body,
-            message_type: Some(message_type),
-            children: children,
+            body: "".to_string(),
+            message_type: None,
+            children: Vec::new(),
 
-            boundary: Some(boundary),
+            boundary: MimeMessage::random_boundary(),
         }
     }
+
+    /// Update the headers on this message based on the internal state.
+    ///
+    /// When certain properties of the message are modified, the headers
+    /// used to represent them are not automatically updated.
+    /// Call this if these are changed.
+    pub fn update_headers(&mut self) {
+        if self.children.len() > 0 && self.message_type.is_none() {
+            // This should be a multipart message, so make it so!
+            self.message_type = Some(MimeMultipartType::Mixed);
+        }
+
+        if self.message_type.is_some() {
+            // We are some form of multi-part message, so update our
+            // Content-Type header.
+            let mut params = HashMap::new();
+            params.insert("boundary".to_string(), self.boundary.clone());
+            let ct_header = MimeContentTypeHeader {
+                content_type: self.message_type.unwrap().to_content_type(),
+                params: params
+            };
+            self.headers.insert(Header::new_with_value(
+                "Content-Type".to_string(),
+                ct_header
+            ).unwrap());
+        }
+    }
+
 
     /// Parse `s` into a MimeMessage.
     ///
@@ -133,29 +182,8 @@ impl MimeMessage {
         }
     }
 
-    /// Get the multipart boundary.
-    ///
-    /// If the boundary was not already set, this will make a boundary.
-    ///
-    /// This will also set the Content-Type header appropriately.
-    /// If the message_type is not set, it will default to multipart/mixed.
     #[experimental]
-    pub fn boundary(&mut self) -> String {
-        if self.boundary.is_none() {
-            if self.message_type.is_none() {
-                self.message_type = Some(MimeMultipartType::Mixed);
-            }
-
-            // Make boundary string.
-            // TODO: Do this better
-            self.boundary = Some("BOUNDARY".to_string());
-        }
-
-        self.boundary.clone().unwrap()
-    }
-
-    #[experimental]
-    pub fn as_string(&mut self) -> String {
+    pub fn as_string(&self) -> String {
         let mut builder = Rfc5322Builder::new();
 
         for header in self.headers.iter() {
@@ -166,17 +194,16 @@ impl MimeMessage {
         builder.emit_raw(format!("\r\n{}\r\n", self.body).as_slice());
 
         if self.children.len() > 0 {
-            let boundary = self.boundary();
 
-            for part in self.children.iter_mut() {
+            for part in self.children.iter() {
                 builder.emit_raw(
                     format!("--{}\r\n{}\r\n",
-                            boundary,
+                            self.boundary,
                             part.as_string()).as_slice()
                 );
             }
 
-            builder.emit_raw(format!("--{}\r\n", boundary).as_slice());
+            builder.emit_raw(format!("--{}\r\n", self.boundary).as_slice());
         }
 
         builder.result().clone()
@@ -660,5 +687,12 @@ mod tests {
         assert_eq!(MimeMultipartType::Alternate.to_content_type(), (multipart.clone(), "alternate".to_string()));
         assert_eq!(MimeMultipartType::Digest.to_content_type(),    (multipart.clone(), "digest".to_string()));
         assert_eq!(MimeMultipartType::Parallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
+    }
+
+    #[test]
+    fn test_boundary_generation() {
+        let message = MimeMessage::new("Body".to_string());
+        // This is random, so we can only really check that it's the expected length
+        assert_eq!(message.boundary.len(), super::BOUNDARY_LENGTH);
     }
 }

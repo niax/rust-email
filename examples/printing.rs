@@ -22,5 +22,7 @@ fn main() {
         ]).unwrap()
     );
 
+    message.update_headers();
+
     println!("{}", message.as_string());
 }

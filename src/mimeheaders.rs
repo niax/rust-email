@@ -1,4 +1,7 @@
-use super::header::FromHeader;
+use super::header::{
+    FromHeader,
+    ToHeader,
+};
 use super::rfc2045::Rfc2045Parser;
 use super::rfc2047::decode_q_encoding;
 
@@ -35,6 +38,17 @@ impl FromHeader for MimeContentTypeHeader {
         } else {
             None
         }
+    }
+}
+
+impl ToHeader for MimeContentTypeHeader {
+    fn to_header(value: MimeContentTypeHeader) -> Option<String> {
+        let (mime_major, mime_minor) = value.content_type;
+        let mut result = format!("{}/{}", mime_major, mime_minor);
+        for (key, val) in value.params.iter() {
+            result = format!("{} {}={};", result, key, val);
+        }
+        Some(result)
     }
 }
 
