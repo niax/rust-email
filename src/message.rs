@@ -1,4 +1,4 @@
-use super::header::HeaderMap;
+use super::header::{HeaderMap, Header};
 use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
 use super::mimeheaders::{
     MimeContentType,
@@ -98,26 +98,20 @@ impl MimeMessage {
 
     #[unstable]
     pub fn new(body: String) -> MimeMessage {
-        MimeMessage {
-            headers: HeaderMap::new(),
-            body: body,
-            message_type: None,
-            children: Vec::new(),
-
-            boundary: MimeMessage::random_boundary(),
-        }
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.update_headers();
+        message
     }
 
     #[experimental]
     pub fn new_with_children(body: String, message_type: MimeMultipartType, children: Vec<MimeMessage>) -> MimeMessage {
-        MimeMessage {
-            headers: HeaderMap::new(),
-            body: body,
-            message_type: Some(message_type),
-            children: children,
-
-            boundary: MimeMessage::random_boundary(),
-        }
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.message_type = Some(message_type);
+        message.children = children;
+        message.update_headers();
+        message
     }
 
     #[experimental]
@@ -125,15 +119,54 @@ impl MimeMessage {
                              message_type: MimeMultipartType,
                              children: Vec<MimeMessage>,
                              boundary: String) -> MimeMessage {
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.message_type = Some(message_type);
+        message.children = children;
+        message.boundary = boundary;
+        message.update_headers();
+        message
+    }
+
+    #[experimental]
+    pub fn new_blank_message() -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
-            body: body,
-            message_type: Some(message_type),
-            children: children,
+            body: "".to_string(),
+            message_type: None,
+            children: Vec::new(),
 
-            boundary: boundary,
+            boundary: MimeMessage::random_boundary(),
         }
     }
+
+    /// Update the headers on this message based on the internal state.
+    ///
+    /// When certain properties of the message are modified, the headers
+    /// used to represent them are not automatically updated.
+    /// Call this if these are changed.
+    pub fn update_headers(&mut self) {
+        if self.children.len() > 0 && self.message_type.is_none() {
+            // This should be a multipart message, so make it so!
+            self.message_type = Some(MimeMultipartType::Mixed);
+        }
+
+        if self.message_type.is_some() {
+            // We are some form of multi-part message, so update our
+            // Content-Type header.
+            let mut params = HashMap::new();
+            params.insert("boundary".to_string(), self.boundary.clone());
+            let ct_header = MimeContentTypeHeader {
+                content_type: self.message_type.unwrap().to_content_type(),
+                params: params
+            };
+            self.headers.insert(Header::new_with_value(
+                "Content-Type".to_string(),
+                ct_header
+            ).unwrap());
+        }
+    }
+
 
     /// Parse `s` into a MimeMessage.
     ///
