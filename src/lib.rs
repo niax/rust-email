@@ -13,7 +13,7 @@ extern crate lazy_static;
 pub use header::{
     Header,
     HeaderMap,
-    HeaderItems,
+    HeaderIter,
     FromHeader,
     ToHeader,
     ToFoldedHeader,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
-use std::slice::Items;
+use std::slice::Iter as SliceIter;
 use std::rc::Rc;
 
 use chrono::{
@@ -199,20 +199,20 @@ impl fmt::Show for Header {
 }
 
 #[unstable]
-pub struct HeaderItems<'s> {
-    iter: Items<'s, Rc<Header>>
+pub struct HeaderIter<'s> {
+    iter: SliceIter<'s, Rc<Header>>
 }
 
-impl<'s> HeaderItems<'s> {
+impl<'s> HeaderIter<'s> {
     #[unstable]
-    fn new(iter: Items<'s, Rc<Header>>) -> HeaderItems<'s> {
-        HeaderItems {
+    fn new(iter: SliceIter<'s, Rc<Header>>) -> HeaderIter<'s> {
+        HeaderIter {
             iter: iter
         }
     }
 }
 
-impl<'s> Iterator<&'s Header> for HeaderItems<'s> {
+impl<'s> Iterator<&'s Header> for HeaderIter<'s> {
     fn next(&mut self) -> Option<&'s Header> {
         match self.iter.next() {
             Some(s) => Some(s.deref()),
@@ -271,8 +271,8 @@ impl HeaderMap {
 
     /// Get an Iterator over the collection of headers.
     #[unstable]
-    pub fn iter(&self) -> HeaderItems {
-        HeaderItems::new(self.ordered_headers.iter())
+    pub fn iter(&self) -> HeaderIter {
+        HeaderIter::new(self.ordered_headers.iter())
     }
 
     /// Get the last value of the header with `name`

@@ -284,11 +284,11 @@ mod tests {
 
     #[test]
     fn test_address_from_string() {
-        let addr = from_str::<Mailbox>("\"Joe Blogs\" <joe@example.org>").unwrap();
+        let addr = "\"Joe Blogs\" <joe@example.org>".parse::<Mailbox>().unwrap();
         assert_eq!(addr.name.unwrap(), "Joe Blogs".to_string());
         assert_eq!(addr.address, "joe@example.org".to_string());
 
-        assert!(from_str::<Mailbox>("Not an address").is_none());
+        assert!("Not an address".parse::<Mailbox>().is_none());
     }
 
     #[test]

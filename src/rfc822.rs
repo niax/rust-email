@@ -59,7 +59,7 @@ impl<'s> Rfc822DateParser<'s> {
     #[inline]
     fn consume_u32(&mut self) -> Option<u32> {
         match self.parser.consume_word(false) {
-            Some(s) => from_str::<u32>(s.as_slice()),
+            Some(s) => s.parse(),
             None => None,
         }
     }
@@ -173,7 +173,7 @@ impl<'s> Rfc822DateParser<'s> {
                     s_slice
                 };
                 // Try to parse zone as an int
-                match from_str::<i32>(s_slice) {
+                match s_slice.parse::<i32>() {
                     Some(i) => {
                         let offset_hours = i / 100;
                         let offset_mins = i % 100;
