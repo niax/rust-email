@@ -115,7 +115,7 @@ impl<'s> Rfc822DateParser<'s> {
         self.parser.push_position();
         let day_of_week = self.parser.consume_word(false);
         if day_of_week.is_some() {
-            let lower_dow = day_of_week.unwrap().into_ascii_lower();
+            let lower_dow = day_of_week.unwrap().into_ascii_lowercase();
             if DAYS_OF_WEEK.position_elem(&lower_dow.as_slice()).is_some() {
                 // Lose the ","
                 self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });
@@ -134,7 +134,7 @@ impl<'s> Rfc822DateParser<'s> {
 
         let month = match self.parser.consume_word(false) {
             Some(s) => {
-                let lower_month = s.into_ascii_lower();
+                let lower_month = s.into_ascii_lowercase();
                 // Add one because months are 1 indexed, array is 0 indexed.
                 MONTHS.position_elem(&lower_month.as_slice()).map(|i| { (i + 1) as u32 })
             },

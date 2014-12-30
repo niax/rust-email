@@ -85,7 +85,7 @@ impl MimeContentTransferEncoding {
 
 impl FromHeader for MimeContentTransferEncoding {
     fn from_header(value: String) -> Option<MimeContentTransferEncoding> {
-        let lower = value.into_ascii_lower();
+        let lower = value.into_ascii_lowercase();
         match lower.as_slice() {
             "7bit" | "8bit" | "binary" => Some(MimeContentTransferEncoding::Identity),
             "quoted-printable" => Some(MimeContentTransferEncoding::QuotedPrintable),

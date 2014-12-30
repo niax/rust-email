@@ -1,5 +1,5 @@
 //! Module for decoding RFC 2047 strings
-// use for to_ascii_lower
+// use for to_ascii_lowercase
 use std::ascii::AsciiExt;
 use std::num::from_str_radix;
 use serialize::base64::FromBase64;
@@ -17,8 +17,8 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
     if parts.len() != 5 || parts[0] != "=" || parts[4] != "=" {
         None
     } else {
-        let charset = parts[1].to_ascii_lower();
-        let encoding = parts[2].to_ascii_lower();
+        let charset = parts[1].to_ascii_lowercase();
+        let encoding = parts[2].to_ascii_lowercase();
         let content = parts[3];
 
         let bytes = match encoding.as_slice() {
@@ -67,7 +67,7 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                 inner_pos
             }
             _ => {
-                result.push(c.ch.to_ascii().as_byte());
+                result.push(c.ch as u8);
                 c.next
             }
         }
