@@ -114,7 +114,7 @@ impl<'s> Rfc5322Parser<'s> {
 
 
         // Whatever remains is the body
-        let body = self.s.slice_chars(self.pos, self.s.len()).to_string();
+        let body = self.s.slice_from(self.pos).to_string();
         self.pos = self.s.len();
 
         Some((headers, body))
