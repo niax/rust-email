@@ -466,7 +466,7 @@ impl Rfc5322Builder {
 
            cur_len += 1;
            // We've reached our line length, so
-           if cur_len >= MIME_LINE_LENGTH {
+           if cur_len >= MIME_LINE_LENGTH && last_space > 0 {
                // Emit the string from the last place we cut it to the
                // last space that we saw
                self.emit_raw(s.slice(last_cut, last_space));
@@ -476,6 +476,7 @@ impl Rfc5322Builder {
                // Reset our counters
                cur_len = 0;
                last_cut = s.char_range_at(last_space).next;
+               last_space = 0;
            }
 
            pos = c_range.next;
