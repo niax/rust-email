@@ -103,9 +103,8 @@ impl<'s> Rfc5322Parser<'s> {
                 headers.insert(header.unwrap());
             } else {
                 // Check end of headers as marked by CRLF
-                if !self.eof() && self.peek() == '\r' {
-                    assert_eq!(self.consume_char(), '\r');
-                    assert_eq!(self.consume_char(), '\n');
+                if !self.eof() && self.peek_linebreak() {
+                    assert!(self.consume_linebreak());
                 }
 
                 break;
@@ -145,8 +144,7 @@ impl<'s> Rfc5322Parser<'s> {
             self.consume_linear_whitespace();
             let field_value = self.consume_unstructured();
 
-            assert!(self.consume_char() == '\r');
-            assert!(self.consume_char() == '\n');
+            assert!(self.consume_linebreak());
 
             Some(Header::new(field_name, field_value))
         }
@@ -157,7 +155,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn consume_unstructured(&mut self) -> String {
         let mut result = String::new();
         while !self.eof() {
-            if self.peek() == '\r' {
+            if self.peek_linebreak() {
                 // Check for folding whitespace, if it wasn't, then
                 // we're done parsing
                 if !self.consume_folding_whitespace() {
@@ -181,14 +179,10 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn consume_folding_whitespace(&mut self) -> bool {
         // Remember where we were, in case this isn't folding whitespace
         let current_position = self.pos;
-        let is_fws = if !self.eof() && self.consume_char() == '\r' {
-            if !self.eof() && self.consume_char() == '\n' {
-                match self.consume_char() {
-                    ' ' | '\t' => true,
-                    _ => false,
-                }
-            } else {
-                false
+        let is_fws = if !self.eof() && self.consume_linebreak() {
+            match self.consume_char() {
+                ' ' | '\t' => true,
+                _ => false,
             }
         } else {
             false
@@ -359,6 +353,37 @@ impl<'s> Rfc5322Parser<'s> {
         let ch_range = self.s.char_range_at(self.pos);
         self.pos = ch_range.next;
         ch_range.ch
+    }
+
+    // Consume a linebreak: \r\n, \r or \n
+    #[unstable]
+    pub fn consume_linebreak(&mut self) -> bool {
+        if self.eof() {
+            return false;
+        }
+
+        let start_pos = self.pos;
+
+        match self.consume_char() {
+            '\r' => {
+                // Try to consume a single \n following the \r
+                if !self.eof() && self.peek() == '\n' {
+                    self.consume_char();
+                }
+                true
+            },
+            '\n' => true,
+            _ => { self.pos = start_pos; false }
+        }
+    }
+
+    // Peek at the current character and determine whether it's (part of) a linebreak
+    #[unstable]
+    pub fn peek_linebreak(&mut self) -> bool {
+        match self.peek() {
+            '\r' | '\n' => true,
+            _ => false
+        }
     }
 
     /// Consume a set of characters, each passed to `test` until this function
