@@ -278,7 +278,7 @@ impl MimeMessage {
                     // Pull apart the message on the boundary.
                     let mut parts = MimeMessage::split_boundary(&body, boundary);
                     // Pop off the first message, as it's part of the parent.
-                    let pre_body = parts.remove(0).unwrap_or("".to_string());
+                    let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
                     // Parse out each of the child parts, recursively downwards.
                     // Filtering out and unwrapping None as we go.
                     let message_parts: Vec<MimeMessage> = parts.iter()
