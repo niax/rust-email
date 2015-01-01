@@ -7,7 +7,7 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
-use std::rand::{task_rng, Rng};
+use std::rand::{thread_rng, Rng};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -93,7 +93,7 @@ pub struct MimeMessage {
 
 impl MimeMessage {
     fn random_boundary() -> String {
-        task_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
+        thread_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
     }
 
     #[unstable]
