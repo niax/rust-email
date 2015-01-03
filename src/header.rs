@@ -323,7 +323,7 @@ mod tests {
     };
 
 
-    static SAMPLE_HEADERS: [(&'static str, &'static str), ..4] = [
+    static SAMPLE_HEADERS: [(&'static str, &'static str); 4] = [
         ("Test", "Value"),
         ("Test", "Value 2"),
         ("Test-2", "Value 3"),

@@ -9,12 +9,12 @@ use chrono::{
 
 use super::rfc5322::Rfc5322Parser;
 
-static DAYS_OF_WEEK: [&'static str, .. 7] = [
+static DAYS_OF_WEEK: [&'static str; 7] = [
     "mon", "tue", "wed", "thu",
     "fri", "sat", "sun",
 ];
 
-static MONTHS: [&'static str, .. 12] = [
+static MONTHS: [&'static str; 12] = [
     "jan", "feb", "mar", "apr",
     "may", "jun", "jul", "aug",
     "sep", "oct", "nov", "dec"
