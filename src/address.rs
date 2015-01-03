@@ -6,7 +6,7 @@ use super::header::{FromHeader, ToFoldedHeader};
 
 
 /// Represents an RFC 5322 Address
-#[deriving(PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 #[stable]
 pub enum Address {
     /// A "regular" email address
@@ -55,7 +55,7 @@ impl fmt::Show for Address {
 }
 
 /// Represents an RFC 5322 mailbox
-#[deriving(PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 #[stable]
 pub struct Mailbox {
     /// The given name for this address

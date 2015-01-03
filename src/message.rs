@@ -15,7 +15,7 @@ use encoding::DecoderTrap;
 const BOUNDARY_LENGTH: uint = 30;
 
 /// Marks the type of a multipart message
-#[deriving(Eq,PartialEq,Show,Copy)]
+#[derive(Eq,PartialEq,Show,Copy)]
 #[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
@@ -304,7 +304,7 @@ impl MimeMessage {
 
     // Split `body` up on the `boundary` string.
     fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
-        #[deriving(Show)]
+        #[derive(Show)]
         enum ParseState {
             Normal,
             SeenCr,
@@ -389,7 +389,7 @@ mod tests {
     use super::super::header::{Header,HeaderMap};
     use self::test::Bencher;
 
-    #[deriving(Show)]
+    #[derive(Show)]
     struct MessageTestResult<'s> {
         headers: Vec<(&'s str, &'s str)>,
         body: &'s str,

@@ -53,7 +53,7 @@ impl ToHeader for MimeContentTypeHeader {
 }
 
 /// Special header type for the Content-Transfer-Encoding header.
-#[deriving(Show,PartialEq,Eq,Copy)]
+#[derive(Show,PartialEq,Eq,Copy)]
 #[stable]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
