@@ -7,7 +7,7 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
-use std::rand::{task_rng, Rng};
+use std::rand::{thread_rng, Rng};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -15,7 +15,7 @@ use encoding::DecoderTrap;
 const BOUNDARY_LENGTH: uint = 30;
 
 /// Marks the type of a multipart message
-#[deriving(Eq,PartialEq,Show,Copy)]
+#[derive(Eq,PartialEq,Show,Copy)]
 #[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
@@ -93,7 +93,7 @@ pub struct MimeMessage {
 
 impl MimeMessage {
     fn random_boundary() -> String {
-        task_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
+        thread_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
     }
 
     #[unstable]
@@ -278,7 +278,7 @@ impl MimeMessage {
                     // Pull apart the message on the boundary.
                     let mut parts = MimeMessage::split_boundary(&body, boundary);
                     // Pop off the first message, as it's part of the parent.
-                    let pre_body = parts.remove(0).unwrap_or("".to_string());
+                    let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
                     // Parse out each of the child parts, recursively downwards.
                     // Filtering out and unwrapping None as we go.
                     let message_parts: Vec<MimeMessage> = parts.iter()
@@ -304,7 +304,7 @@ impl MimeMessage {
 
     // Split `body` up on the `boundary` string.
     fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
-        #[deriving(Show)]
+        #[derive(Show)]
         enum ParseState {
             Normal,
             SeenCr,
@@ -389,7 +389,7 @@ mod tests {
     use super::super::header::{Header,HeaderMap};
     use self::test::Bencher;
 
-    #[deriving(Show)]
+    #[derive(Show)]
     struct MessageTestResult<'s> {
         headers: Vec<(&'s str, &'s str)>,
         body: &'s str,

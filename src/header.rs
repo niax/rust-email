@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
+use std::ops::Deref;
 use std::slice::Iter as SliceIter;
 use std::rc::Rc;
 
@@ -55,7 +56,7 @@ impl<T: ToHeader> ToFoldedHeader for T {
 
 impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
-        #[deriving(Show,Copy)]
+        #[derive(Show,Copy)]
         enum ParseState {
             Normal(uint),
             SeenEquals(uint),
@@ -156,7 +157,7 @@ impl<'a> ToHeader for &'a str {
 }
 
 /// Represents an RFC 822 Header
-#[deriving(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 #[unstable]
 pub struct Header {
     /// The name of this header
@@ -222,7 +223,7 @@ impl<'s> Iterator<&'s Header> for HeaderIter<'s> {
 }
 
 /// A collection of Headers
-#[deriving(Eq,PartialEq)]
+#[derive(Eq,PartialEq)]
 #[unstable]
 pub struct HeaderMap {
     // We store headers "twice" inside the HeaderMap.
@@ -323,7 +324,7 @@ mod tests {
     };
 
 
-    static SAMPLE_HEADERS: [(&'static str, &'static str), ..4] = [
+    static SAMPLE_HEADERS: [(&'static str, &'static str); 4] = [
         ("Test", "Value"),
         ("Test", "Value 2"),
         ("Test-2", "Value 3"),
