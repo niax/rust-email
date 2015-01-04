@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt;
+use std::ops::Deref;
 use std::slice::Iter as SliceIter;
 use std::rc::Rc;
 
