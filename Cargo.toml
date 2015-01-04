@@ -9,7 +9,7 @@ documentation = "https://niax.github.io/rust-email/email/"
 license = "MIT"
 
 [dependencies]
-encoding = "~0.2.6"
-time = "~0.1.3"
-chrono = "~0.1.5"
-lazy_static = "~0.1.2"
+encoding = "~0.2.12"
+time = "~0.1.7"
+chrono = "~0.1.7"
+lazy_static = "~0.1.4"
