@@ -1,6 +1,7 @@
 #![feature(phase)]
 #![feature(macro_rules)]
 #![feature(globs)]
+#![feature(associated_types)]
 #![unstable]
 extern crate serialize;
 extern crate encoding;

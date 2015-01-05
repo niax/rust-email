@@ -213,7 +213,9 @@ impl<'s> HeaderIter<'s> {
     }
 }
 
-impl<'s> Iterator<&'s Header> for HeaderIter<'s> {
+impl<'s> Iterator for HeaderIter<'s> {
+    type Item = &'s Header;
+
     fn next(&mut self) -> Option<&'s Header> {
         match self.iter.next() {
             Some(s) => Some(s.deref()),
