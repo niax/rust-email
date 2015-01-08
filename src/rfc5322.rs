@@ -370,7 +370,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// Returns the string of characters that returned true for the test function.
     #[inline]
     #[unstable]
-    pub fn consume_while(&mut self, test: |char| -> bool) -> String {
+    pub fn consume_while<F: Fn(char) -> bool>(&mut self, test: F) -> String {
         let start_pos = self.pos;
         while !self.eof() && test(self.peek()) {
             self.consume_char();

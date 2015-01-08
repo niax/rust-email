@@ -258,7 +258,7 @@ impl HeaderMap {
         self.ordered_headers.push(rc.clone());
         
         // and to the mapping between header names and values.
-        match self.headers.entry(header_name) {
+        match self.headers.entry(&header_name) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().push(rc.clone());
             },
@@ -267,7 +267,7 @@ impl HeaderMap {
                 // as of yet, so make a new list and push it in.
                 let mut header_list = Vec::new();
                 header_list.push(rc.clone());
-                entry.set(header_list);
+                entry.insert(header_list);
             },
         };
     }
