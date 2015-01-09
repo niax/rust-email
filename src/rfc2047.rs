@@ -2,7 +2,7 @@
 // use for to_ascii_lowercase
 use std::ascii::AsciiExt;
 use std::num::from_str_radix;
-use serialize::base64::FromBase64;
+use rustc_serialize::base64::FromBase64;
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -44,7 +44,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
 
-    let mut pos = 0u;
+    let mut pos = 0us;
 
     while pos < s.len() {
         let c = s.char_range_at(pos);
@@ -52,14 +52,14 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
             '=' => {
                 let mut inner_pos = c.next;
                 let mut hex_string = String::new();
-                for _ in range(0u, 2) {
+                for _ in range(0us, 2) {
                     let hex_digit_char = s.char_range_at(inner_pos);
                     hex_string.push(hex_digit_char.ch);
                     inner_pos = hex_digit_char.next;
                 }
                 // = followed by a newline means a continuation
                 if hex_string.as_slice() != "\r\n" {
-                    match from_str_radix(hex_string.as_slice(), 16u) {
+                    match from_str_radix(hex_string.as_slice(), 16us) {
                         Some(char_val) => { result.push(char_val) },
                         None => { return Err(format!("'{}' is not a hex number", hex_string)) },
                     }

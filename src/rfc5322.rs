@@ -4,7 +4,7 @@ use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
 
 #[stable]
-pub const MIME_LINE_LENGTH: uint = 78u;
+pub const MIME_LINE_LENGTH: usize = 78us;
 
 trait Rfc5322Character {
     /// Is considered a special character by RFC 5322 Section 3.2.3
@@ -55,8 +55,8 @@ impl Rfc5322Character for char {
 #[unstable]
 pub struct Rfc5322Parser<'s> {
     s: &'s str,
-    pos: uint,
-    pos_stack: Vec<uint>,
+    pos: usize,
+    pos_stack: Vec<usize>,
 }
 
 impl<'s> Rfc5322Parser<'s> {
@@ -65,7 +65,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
             s: source,
-            pos: 0u,
+            pos: 0us,
             pos_stack: Vec::new(),
         }
     }
@@ -423,10 +423,10 @@ impl Rfc5322Builder {
 
     #[experimental]
     pub fn emit_folded(&mut self, s: &str) {
-       let mut pos = 0u;
-       let mut cur_len = 0u;
-       let mut last_space = 0u;
-       let mut last_cut = 0u;
+       let mut pos = 0us;
+       let mut cur_len = 0us;
+       let mut last_space = 0us;
+       let mut last_cut = 0us;
 
        while pos < s.len() {
            let c_range = s.char_range_at(pos);

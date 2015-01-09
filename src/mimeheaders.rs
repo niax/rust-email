@@ -7,7 +7,7 @@ use super::rfc2047::decode_q_encoding;
 
 use std::ascii::OwnedAsciiExt;
 use std::collections::HashMap;
-use serialize::base64::FromBase64;
+use rustc_serialize::base64::FromBase64;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.

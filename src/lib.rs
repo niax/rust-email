@@ -1,6 +1,5 @@
-#![feature(phase)]
 #![unstable]
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 extern crate encoding;
 extern crate time;
 extern crate chrono;

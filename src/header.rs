@@ -44,11 +44,11 @@ pub trait ToHeader {
 /// in to a line.
 #[unstable]
 pub trait ToFoldedHeader {
-    fn to_folded_header(start_pos: uint, value: Self) -> Option<String>;
+    fn to_folded_header(start_pos: usize, value: Self) -> Option<String>;
 }
 
 impl<T: ToHeader> ToFoldedHeader for T {
-    fn to_folded_header(_: uint, value: T) -> Option<String> {
+    fn to_folded_header(_: usize, value: T) -> Option<String> {
         // We ignore the start_position because the thing will fold anyway.
         ToHeader::to_header(value)
     }
@@ -58,14 +58,14 @@ impl FromHeader for String {
     fn from_header(value: String) -> Option<String> {
         #[derive(Show,Copy)]
         enum ParseState {
-            Normal(uint),
-            SeenEquals(uint),
-            SeenQuestion(uint, uint),
+            Normal(usize),
+            SeenEquals(usize),
+            SeenQuestion(usize, usize),
         }
 
-        let mut state = ParseState::Normal(0u);
+        let mut state = ParseState::Normal(0us);
         let mut decoded = String::new();
-        let mut pos = 0u;
+        let mut pos = 0us;
 
         let value_slice = value.as_slice();
 
@@ -193,7 +193,7 @@ impl Header {
     }
 }
 
-impl fmt::Show for Header {
+impl fmt::String for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}: {}", self.name, self.value)
     }
@@ -258,7 +258,7 @@ impl HeaderMap {
         self.ordered_headers.push(rc.clone());
         
         // and to the mapping between header names and values.
-        match self.headers.entry(&header_name) {
+        match self.headers.entry(header_name) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().push(rc.clone());
             },
@@ -296,7 +296,7 @@ impl HeaderMap {
 
     #[unstable]
     /// Get the number of headers within this map.
-    pub fn len(&self) -> uint {
+    pub fn len(&self) -> usize {
         self.ordered_headers.len()
     }
 
@@ -428,7 +428,7 @@ mod tests {
             expected_headers.insert(header);
         }
 
-        let mut count = 0u;
+        let mut count = 0us;
         // Ensure all the headers returned are expected
         for header in headers.iter() {
             assert!(expected_headers.contains(header));
