@@ -1,14 +1,11 @@
-#![feature(phase)]
-#![feature(macro_rules)]
-#![feature(globs)]
-#![feature(associated_types)]
 #![unstable]
+#![allow(unstable)]
 extern crate serialize;
 extern crate encoding;
 extern crate time;
 extern crate chrono;
 
-#[phase(plugin)]
+#[macro_use]
 extern crate lazy_static;
 
 pub use header::{

@@ -6,7 +6,7 @@ use super::header::{FromHeader, ToFoldedHeader};
 
 
 /// Represents an RFC 5322 Address
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Show)]
 #[stable]
 pub enum Address {
     /// A "regular" email address
@@ -35,7 +35,7 @@ impl Address {
     }
 }
 
-impl fmt::Show for Address {
+impl fmt::String for Address {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Address::Mailbox(ref mbox) => mbox.fmt(fmt),
@@ -55,7 +55,7 @@ impl fmt::Show for Address {
 }
 
 /// Represents an RFC 5322 mailbox
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Show)]
 #[stable]
 pub struct Mailbox {
     /// The given name for this address
@@ -84,7 +84,7 @@ impl Mailbox {
     }
 }
 
-impl fmt::Show for Mailbox {
+impl fmt::String for Mailbox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self.name {
             Some(ref name) => write!(fmt, "\"{}\" <{}>", name, self.address),
@@ -106,7 +106,7 @@ impl FromHeader for Vec<Address> {
 }
 
 impl ToFoldedHeader for Vec<Address> {
-    fn to_folded_header(start_pos: uint, value: Vec<Address>) -> Option<String> {
+    fn to_folded_header(start_pos: usize, value: Vec<Address>) -> Option<String> {
         let mut header = String::new();
 
         let mut line_len = start_pos;

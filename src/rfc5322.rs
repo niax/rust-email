@@ -4,7 +4,7 @@ use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
 
 #[stable]
-pub const MIME_LINE_LENGTH: uint = 78u;
+pub const MIME_LINE_LENGTH: usize = 78;
 
 trait Rfc5322Character {
     /// Is considered a special character by RFC 5322 Section 3.2.3
@@ -55,8 +55,8 @@ impl Rfc5322Character for char {
 #[unstable]
 pub struct Rfc5322Parser<'s> {
     s: &'s str,
-    pos: uint,
-    pos_stack: Vec<uint>,
+    pos: usize,
+    pos_stack: Vec<usize>,
 }
 
 impl<'s> Rfc5322Parser<'s> {
@@ -65,7 +65,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
             s: source,
-            pos: 0u,
+            pos: 0,
             pos_stack: Vec::new(),
         }
     }
@@ -370,7 +370,9 @@ impl<'s> Rfc5322Parser<'s> {
     /// Returns the string of characters that returned true for the test function.
     #[inline]
     #[unstable]
-    pub fn consume_while(&mut self, test: |char| -> bool) -> String {
+    pub fn consume_while<F>(&mut self, test: F) -> String
+        where F: Fn(char) -> bool
+    {
         let start_pos = self.pos;
         while !self.eof() && test(self.peek()) {
             self.consume_char();
@@ -423,10 +425,10 @@ impl Rfc5322Builder {
 
     #[experimental]
     pub fn emit_folded(&mut self, s: &str) {
-       let mut pos = 0u;
-       let mut cur_len = 0u;
-       let mut last_space = 0u;
-       let mut last_cut = 0u;
+       let mut pos = 0;
+       let mut cur_len = 0;
+       let mut last_space = 0;
+       let mut last_cut = 0;
 
        while pos < s.len() {
            let c_range = s.char_range_at(pos);

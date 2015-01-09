@@ -1,3 +1,4 @@
+#![allow(unstable)]
 extern crate email;
 
 use email::{MimeMessage, Header, Address};

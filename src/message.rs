@@ -12,7 +12,7 @@ use std::rand::{thread_rng, Rng};
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
 
-const BOUNDARY_LENGTH: uint = 30;
+const BOUNDARY_LENGTH: usize = 30;
 
 /// Marks the type of a multipart message
 #[derive(Eq,PartialEq,Show,Copy)]
@@ -318,9 +318,9 @@ impl MimeMessage {
         let mut state = ParseState::SeenLf;
 
         // Initialize starting positions
-        let mut pos = 0u;
-        let mut boundary_start = 0u;
-        let mut boundary_end = 0u;
+        let mut pos = 0;
+        let mut boundary_start = 0;
+        let mut boundary_end = 0;
 
         let mut parts = Vec::new();
 
@@ -342,11 +342,11 @@ impl MimeMessage {
                     }
                 },
                 (ParseState::ReadBoundary, '\r') => {
-                    let read_boundary = body_slice.slice(boundary_start + 1, pos).trim();
+                    let read_boundary = body_slice[boundary_start + 1 .. pos].trim();
                     if &read_boundary.to_string() == boundary {
                         // Boundary matches, push the part
                         // The part is from the last boundary's end to this boundary's beginning
-                        let part = body_slice.slice(boundary_end, boundary_start - 1);
+                        let part = &body_slice[boundary_end .. boundary_start - 1];
                         parts.push(part.to_string());
                         // This is our boundary, so consume boundary end
                         ParseState::BoundaryEnd
@@ -371,7 +371,7 @@ impl MimeMessage {
         }
 
         // Push in the final part of the message (what remains)
-        let final_part = body_slice.slice_from(boundary_end);
+        let final_part = &body_slice[boundary_end..];
         if final_part.trim().len() != 0 {
             parts.push(final_part.to_string());
         }
