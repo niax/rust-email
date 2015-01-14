@@ -8,7 +8,7 @@ env:
 script:
     - cargo build -v
     - cargo test -v
-    - cargo doc -v
+    - cargo doc -v --no-deps
 
 after_success: |
     [ "$TRAVIS_BRANCH" = master ] &&
