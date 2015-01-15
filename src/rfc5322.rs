@@ -559,6 +559,14 @@ mod tests {
                 ],
                 body: "Body",
             },
+            // Support parsing messages with \n instead of \r\n
+            MessageTestCase {
+                input: "From: \"Joe Blogs\" <joe@example.org>\n\nBody",
+                headers: vec![
+                    ("From", "\"Joe Blogs\" <joe@example.org>"),
+                ],
+                body: "Body",
+            },
             MessageTestCase {
                 input: "From: \"Joe Blogs\" <joe@example.org>\r\n\r\nMultiline\r\nBody",
                 headers: vec![
