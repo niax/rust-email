@@ -52,7 +52,7 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
             '=' => {
                 let mut inner_pos = c.next;
                 let mut hex_string = String::new();
-                for _ in range(0us, 2) {
+                for _ in 0..2 {
                     let hex_digit_char = s.char_range_at(inner_pos);
                     hex_string.push(hex_digit_char.ch);
                     inner_pos = hex_digit_char.next;
