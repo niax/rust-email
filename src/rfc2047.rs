@@ -33,7 +33,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         match (bytes, decoder) {
             (Ok(b), Some(d)) => {
-                d.decode(b.as_slice(), DecoderTrap::Replace).ok()
+                d.decode(&b[], DecoderTrap::Replace).ok()
             }
             _ => None,
         }

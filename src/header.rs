@@ -76,11 +76,11 @@ impl FromHeader for String {
             state = match (state, c) {
                 (ParseState::SeenQuestion(start_pos, 4), '=') => {
                     // Go to decode if we've seen enough ?
-                    let part_decoded = decode_rfc2047(value_slice.slice(start_pos, ch_range.next));
+                    let part_decoded = decode_rfc2047(&value_slice[start_pos..ch_range.next]);
                     let to_push = match part_decoded {
                         Some(ref s) => s.as_slice(),
                         // Decoding failed, push the undecoded string in.
-                        None => value_slice.slice(start_pos, pos),
+                        None => &value_slice[start_pos..pos],
                     };
                     decoded.push_str(to_push);
                     // Revert us to normal state, but starting at the next character.
@@ -107,7 +107,7 @@ impl FromHeader for String {
                 (ParseState::Normal(start_pos), '=') => {
                     if start_pos != pos {
                         // Push all up to the =, if there is stuff to push.
-                        decoded.push_str(value_slice.slice(start_pos, pos));
+                        decoded.push_str(&value_slice[start_pos..pos]);
                     }
                     ParseState::SeenEquals(pos)
                 },
@@ -123,7 +123,7 @@ impl FromHeader for String {
             ParseState::SeenEquals(start_pos) => start_pos,
             ParseState::SeenQuestion(start_pos, _) => start_pos,
         };
-        decoded.push_str(value_slice.slice_from(last_start));
+        decoded.push_str(&value_slice[last_start..]);
 
 
         Some(decoded)

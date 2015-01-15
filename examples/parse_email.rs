@@ -11,10 +11,10 @@ fn main() {
 
     let mut file = File::open(&msg_path).ok().expect("can't open file");
     let raw_msg_bytes = file.read_to_end().ok().expect("can't read from file");
-    let raw_msg = String::from_utf8_lossy(raw_msg_bytes.as_slice());
+    let raw_msg = String::from_utf8_lossy(&raw_msg_bytes[]);
 
     println!("INPUT:");
-    println!("{}", raw_msg.as_slice());
+    println!("{}", &raw_msg[]);
 
     let msg = MimeMessage::parse(raw_msg.as_slice()).unwrap();
 

@@ -114,7 +114,7 @@ impl<'s> Rfc5322Parser<'s> {
 
 
         // Whatever remains is the body
-        let body = self.s.slice_from(self.pos).to_string();
+        let body = self.s[self.pos..].to_string();
         self.pos = self.s.len();
 
         Some((headers, body))
@@ -400,7 +400,7 @@ impl<'s> Rfc5322Parser<'s> {
         while !self.eof() && test(self.peek()) {
             self.consume_char();
         }
-        self.s.slice(start_pos, self.pos).to_string()
+        self.s[start_pos..self.pos].to_string()
     }
 
     /// Peek at the current character.
@@ -469,7 +469,7 @@ impl Rfc5322Builder {
            if cur_len >= MIME_LINE_LENGTH && last_space > 0 {
                // Emit the string from the last place we cut it to the
                // last space that we saw
-               self.emit_raw(s.slice(last_cut, last_space));
+               self.emit_raw(&s[last_cut..last_space]);
                // ... and get us ready to put out the continuation
                self.emit_raw("\r\n\t");
 
@@ -483,7 +483,7 @@ impl Rfc5322Builder {
        }
 
        // Finally, emit everything left in the string
-       self.emit_raw(s.slice_from(last_cut));
+       self.emit_raw(&s[last_cut..]);
     }
 }
 

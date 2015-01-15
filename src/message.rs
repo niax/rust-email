@@ -239,7 +239,7 @@ impl MimeMessage {
                 let decoder = encoding_from_whatwg_label(charset.as_slice());
 
                 match decoder {
-                    Some(d) => d.decode(bytes.as_slice(), DecoderTrap::Replace).ok(),
+                    Some(d) => d.decode(&bytes[], DecoderTrap::Replace).ok(),
                     _ => None,
                 }
             },
@@ -342,11 +342,11 @@ impl MimeMessage {
                     }
                 },
                 (ParseState::ReadBoundary, '\r') => {
-                    let read_boundary = body_slice.slice(boundary_start + 1, pos).trim();
+                    let read_boundary = body_slice[(boundary_start + 1)..pos].trim();
                     if &read_boundary.to_string() == boundary {
                         // Boundary matches, push the part
                         // The part is from the last boundary's end to this boundary's beginning
-                        let part = body_slice.slice(boundary_end, boundary_start - 1);
+                        let part = &body_slice[boundary_end..(boundary_start - 1)];
                         parts.push(part.to_string());
                         // This is our boundary, so consume boundary end
                         ParseState::BoundaryEnd
@@ -371,7 +371,7 @@ impl MimeMessage {
         }
 
         // Push in the final part of the message (what remains)
-        let final_part = body_slice.slice_from(boundary_end);
+        let final_part = &body_slice[boundary_end..];
         if final_part.trim().len() != 0 {
             parts.push(final_part.to_string());
         }

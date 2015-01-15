@@ -168,7 +168,7 @@ impl<'s> Rfc822DateParser<'s> {
                 // so strip it off if it's there.
                 let mut s_slice = s.as_slice();
                 s_slice = if s_slice.starts_with("+") {
-                    s_slice.slice_from(1)
+                    &s_slice[1..]
                 } else {
                     s_slice
                 };
