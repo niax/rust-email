@@ -60,8 +60,8 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                 // = followed by a newline means a continuation
                 if hex_string.as_slice() != "\r\n" {
                     match from_str_radix(hex_string.as_slice(), 16us) {
-                        Some(char_val) => { result.push(char_val) },
-                        None => { return Err(format!("'{}' is not a hex number", hex_string)) },
+                        Ok(char_val) => { result.push(char_val) },
+                        Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
                     }
                 }
                 inner_pos

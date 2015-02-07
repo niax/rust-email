@@ -1,4 +1,5 @@
-#![unstable]
+#![feature(collections,core,std_misc)]
+
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate encoding;
 extern crate time;
@@ -29,3 +30,4 @@ pub mod mimeheaders;
 mod header;
 mod address;
 mod message;
+mod results;

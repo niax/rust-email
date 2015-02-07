@@ -14,6 +14,7 @@ use chrono::{
 
 use super::rfc2047::decode_rfc2047;
 use super::rfc822::Rfc822DateParser;
+use super::results::{ParsingResult,ParsingError};
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
@@ -22,7 +23,7 @@ pub trait FromHeader {
     /// Parse the `value` of the header.
     ///
     /// Returns None if the value failed to be parsed
-    fn from_header(value: String) -> Option<Self>;
+    fn from_header(value: String) -> ParsingResult<Self>;
 }
 
 /// Trait for converting from a Rust type into a Header value.
@@ -32,7 +33,7 @@ pub trait ToHeader {
     /// a message header.
     ///
     /// Returns None if the value cannot be stringified.
-    fn to_header(value: Self) -> Option<String>;
+    fn to_header(value: Self) -> ParsingResult<String>;
 }
 
 /// Trait for converting from a Rust time into a Header value
@@ -44,19 +45,19 @@ pub trait ToHeader {
 /// in to a line.
 #[unstable]
 pub trait ToFoldedHeader {
-    fn to_folded_header(start_pos: usize, value: Self) -> Option<String>;
+    fn to_folded_header(start_pos: usize, value: Self) -> ParsingResult<String>;
 }
 
 impl<T: ToHeader> ToFoldedHeader for T {
-    fn to_folded_header(_: usize, value: T) -> Option<String> {
+    fn to_folded_header(_: usize, value: T) -> ParsingResult<String> {
         // We ignore the start_position because the thing will fold anyway.
         ToHeader::to_header(value)
     }
 }
 
 impl FromHeader for String {
-    fn from_header(value: String) -> Option<String> {
-        #[derive(Show,Copy)]
+    fn from_header(value: String) -> ParsingResult<String> {
+        #[derive(Debug,Copy)]
         enum ParseState {
             Normal(usize),
             SeenEquals(usize),
@@ -126,33 +127,37 @@ impl FromHeader for String {
         decoded.push_str(&value_slice[last_start..]);
 
 
-        Some(decoded)
+        Ok(decoded)
     }
 }
 
 impl FromHeader for DateTime<FixedOffset> {
-    fn from_header(value: String) -> Option<DateTime<FixedOffset>> {
+    fn from_header(value: String) -> ParsingResult<DateTime<FixedOffset>> {
         let mut parser = Rfc822DateParser::new(value.as_slice());
-        parser.consume_datetime()
+        match parser.consume_datetime() {
+            Some(x) => Ok(x),
+            // FIXME
+            None => Err(ParsingError::new("Failed to parse datetime.".to_string()))
+        }
     }
 }
 
 impl FromHeader for DateTime<UTC> {
-    fn from_header(value: String) -> Option<DateTime<UTC>> {
-        let dt: Option<DateTime<FixedOffset>> = FromHeader::from_header(value);
+    fn from_header(value: String) -> ParsingResult<DateTime<UTC>> {
+        let dt: ParsingResult<DateTime<FixedOffset>> = FromHeader::from_header(value);
         dt.map(|i| i.with_offset(UTC))
     }
 }
 
 impl ToHeader for String {
-    fn to_header(value: String) -> Option<String> {
-        Some(value)
+    fn to_header(value: String) -> ParsingResult<String> {
+        Ok(value)
     }
 }
 
 impl<'a> ToHeader for &'a str {
-    fn to_header(value: &'a str) -> Option<String> {
-        Some(value.to_string())
+    fn to_header(value: &'a str) -> ParsingResult<String> {
+        Ok(value.to_string())
     }
 }
 
@@ -180,7 +185,7 @@ impl Header {
     ///
     /// Returns None if the value failed to be converted.
     #[unstable]
-    pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> Option<Header> {
+    pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> ParsingResult<Header> {
         let header_len = name.len() + 2;
         ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
     }
@@ -189,7 +194,10 @@ impl Header {
     /// into whichever type `T`
     #[unstable]
     pub fn get_value<T: FromHeader>(&self) -> Option<T> {
-        FromHeader::from_header(self.value.clone())
+        match FromHeader::from_header(self.value.clone()) {
+            Ok(x) => Some(x),
+            Err(_) => None
+        }
     }
 }
 

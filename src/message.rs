@@ -1,5 +1,6 @@
 use super::header::{HeaderMap, Header};
 use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
+use super::results::{ParsingResult,ParsingError};
 use super::mimeheaders::{
     MimeContentType,
     MimeContentTypeHeader,
@@ -15,7 +16,7 @@ use encoding::DecoderTrap;
 const BOUNDARY_LENGTH: usize = 30;
 
 /// Marks the type of a multipart message
-#[derive(Eq,PartialEq,Show,Copy)]
+#[derive(Eq,PartialEq,Debug,Copy)]
 #[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
@@ -174,11 +175,11 @@ impl MimeMessage {
     ///
     /// Be warned that each sub-message that fails to be parsed will be thrown away.
     #[unstable]
-    pub fn parse(s: &str) -> Option<MimeMessage> {
+    pub fn parse(s: &str) -> ParsingResult<MimeMessage> {
         let mut parser = Rfc5322Parser::new(s);
         match parser.consume_message() {
             Some((headers, body)) => MimeMessage::from_headers(headers, body),
-            None => None,
+            None => Err(ParsingError::new("Couldn't parse MIME message.".to_string()))
         }
     }
 
@@ -249,62 +250,60 @@ impl MimeMessage {
 
     // Make a message from a header map and body, parsing out any multi-part
     // messages that are discovered by looking at the Content-Type header.
-    fn from_headers(headers: HeaderMap, body: String) -> Option<MimeMessage> {
-        let content_type = {
-            let header =  headers.get("Content-Type".to_string());
+    fn from_headers(headers: HeaderMap, body: String) -> ParsingResult<MimeMessage> {
+        let content_type = try!({
+            let header = headers.get("Content-Type".to_string());
             match header {
-                Some(h) => h.get_value(),
-                None => Some(MimeContentTypeHeader {
+                Some(h) => match h.get_value() {  // FIXME
+                    Some(x) => Ok(x),
+                    None => Err(ParsingError::new("Couldn't fine content type.".to_string()))
+                },
+                None => Ok(MimeContentTypeHeader {
                     content_type: ("text".to_string(), "plain".to_string()),
                     params: HashMap::new(),
                 })
             }
+        });
+
+        // Pull out the major mime type and the boundary (if it exists)
+        let (mime_type, sub_mime_type) = content_type.content_type;
+        let boundary = content_type.params.get(&"boundary".to_string());
+
+        let mut message = match mime_type.as_slice() {
+            // Only consider a multipart message if we have a boundary, otherwise don't
+            // bother and just assume it's a single message.
+            "multipart" if boundary.is_some() => {
+                let boundary = boundary.unwrap();
+                // Pull apart the message on the boundary.
+                let mut parts = MimeMessage::split_boundary(&body, boundary);
+                // Pop off the first message, as it's part of the parent.
+                let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
+                // Parse out each of the child parts, recursively downwards.
+                // Filtering out and unwrapping None as we go.
+                let message_parts: Vec<MimeMessage> = parts
+                    .iter()
+                    .filter_map(|part| match MimeMessage::parse(part.as_slice()) {
+                        Ok(x) => Some(x),
+                        Err(_) => None
+                    })
+                    .collect();
+                // It should be safe to unwrap the multipart type here because we know the main
+                // mimetype is "multipart"
+                let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
+
+                MimeMessage::new_with_boundary(pre_body, multipart_type, message_parts, boundary.clone())
+            },
+            _ => MimeMessage::new(body),
         };
 
-        if content_type.is_none() {
-            // If we failed to parse the Content-Type header, something went wrong, so bail.
-            None
-        } else {
-            let content_type = content_type.unwrap();
-            // Pull out the major mime type and the boundary (if it exists)
-            let (mime_type, sub_mime_type) = content_type.content_type;
-            let boundary = content_type.params.get(&"boundary".to_string());
-
-            let mut message = match mime_type.as_slice() {
-                // Only consider a multipart message if we have a boundary, otherwise don't
-                // bother and just assume it's a single message.
-                "multipart" if boundary.is_some() => {
-                    let boundary = boundary.unwrap();
-                    // Pull apart the message on the boundary.
-                    let mut parts = MimeMessage::split_boundary(&body, boundary);
-                    // Pop off the first message, as it's part of the parent.
-                    let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
-                    // Parse out each of the child parts, recursively downwards.
-                    // Filtering out and unwrapping None as we go.
-                    let message_parts: Vec<MimeMessage> = parts.iter()
-                                                               .map(|part| { MimeMessage::parse(part.as_slice()) })
-                                                               .filter(|part| { part.is_some() })
-                                                               .map(|part| { part.unwrap() })
-                                                               .collect();
-                    // It should be safe to unwrap the multipart type here because we know the main
-                    // mimetype is "multipart"
-                    let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
-
-                    MimeMessage::new_with_boundary(pre_body, multipart_type, message_parts, boundary.clone())
-                },
-                _ => MimeMessage::new(body),
-            };
-
-            message.headers = headers;
-
-            Some(message)
-        }
+        message.headers = headers;
+        Ok(message)
     }
 
 
     // Split `body` up on the `boundary` string.
     fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
-        #[derive(Show)]
+        #[derive(Debug)]
         enum ParseState {
             Normal,
             SeenCr,
@@ -389,7 +388,7 @@ mod tests {
     use super::super::header::{Header,HeaderMap};
     use self::test::Bencher;
 
-    #[derive(Show)]
+    #[derive(Debug)]
     struct MessageTestResult<'s> {
         headers: Vec<(&'s str, &'s str)>,
         body: &'s str,
@@ -544,8 +543,8 @@ mod tests {
             println!("--- Next test: {}", test.name);
             let message = MimeMessage::parse(test.input);
             let result = match (test.output, message) {
-                (Some(ref expected), Some(ref given)) => expected.matches(given),
-                (None, None) => true,
+                (Some(ref expected), Ok(ref given)) => expected.matches(given),
+                (None, Err(_)) => true,
                 (_, _) => false,
             };
             assert!(result, test.name);

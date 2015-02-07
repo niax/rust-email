@@ -3,10 +3,11 @@ use std::str::FromStr;
 
 use super::rfc5322::{Rfc5322Parser, MIME_LINE_LENGTH};
 use super::header::{FromHeader, ToFoldedHeader};
+use super::results::{ParsingResult,ParsingError};
 
 
 /// Represents an RFC 5322 Address
-#[derive(PartialEq, Eq, Show)]
+#[derive(PartialEq, Eq, Debug)]
 #[stable]
 pub enum Address {
     /// A "regular" email address
@@ -55,7 +56,7 @@ impl fmt::String for Address {
 }
 
 /// Represents an RFC 5322 mailbox
-#[derive(PartialEq, Eq, Show)]
+#[derive(PartialEq, Eq, Debug)]
 #[stable]
 pub struct Mailbox {
     /// The given name for this address
@@ -94,19 +95,21 @@ impl fmt::String for Mailbox {
 }
 
 impl FromStr for Mailbox {
-    fn from_str(s: &str) -> Option<Mailbox> {
+    type Err = ParsingError;
+
+    fn from_str(s: &str) -> ParsingResult<Mailbox> {
         AddressParser::new(s).parse_mailbox()
     }
 }
 
 impl FromHeader for Vec<Address> {
-    fn from_header(value: String) -> Option<Vec<Address>> {
-        Some(AddressParser::new(value.as_slice()).parse_address_list())
+    fn from_header(value: String) -> ParsingResult<Vec<Address>> {
+        Ok(AddressParser::new(value.as_slice()).parse_address_list())
     }
 }
 
 impl ToFoldedHeader for Vec<Address> {
-    fn to_folded_header(start_pos: usize, value: Vec<Address>) -> Option<String> {
+    fn to_folded_header(start_pos: usize, value: Vec<Address>) -> ParsingResult<String> {
         let mut header = String::new();
 
         let mut line_len = start_pos;
@@ -127,7 +130,7 @@ impl ToFoldedHeader for Vec<Address> {
         let real_len = header.len() - 2;
         header.truncate(real_len);
 
-        Some(header)
+        Ok(header)
     }
 }
 
@@ -151,21 +154,17 @@ impl<'s> AddressParser<'s> {
         while !self.p.eof() {
             self.p.push_position();
 
-            let mut entry = self.parse_group();
-
-            if entry.is_none() {
-                // If we failed to parse as group, try again as mailbox
-                self.p.pop_position();
-
-                entry = match self.parse_mailbox() {
-                    Some(mailbox) => Some(Address::Mailbox(mailbox)),
-                    None => None,
+            match self.parse_group() {
+                Ok(x) => result.push(x),
+                Err(_) => {
+                    // If we failed to parse as group, try again as mailbox
+                    self.p.pop_position();
+                    match self.parse_mailbox() {
+                        Ok(x) => result.push(Address::Mailbox(x)),
+                        Err(_) => ()
+                    };
                 }
-            }
-
-            if entry.is_some() {
-                result.push(entry.unwrap());
-            }
+            };
 
             self.p.consume_linear_whitespace();
             if !self.p.eof() && self.p.peek() == ',' {
@@ -178,92 +177,98 @@ impl<'s> AddressParser<'s> {
     }
 
     #[stable]
-    pub fn parse_group(&mut self) -> Option<Address> {
+    pub fn parse_group(&mut self) -> ParsingResult<Address> {
+        let name = match self.p.consume_phrase(false) {
+            Some(x) => x,
+            None => return Err(ParsingError::new("Couldn't find name.".to_string()))
+        };
+
+        if !self.p.eof() && self.p.peek() != ':' {
+            return Err(ParsingError::new(format!("Expected ':', found {}.",
+                                                 self.p.peek())));
+        };
+
+        self.p.consume_char();
         let mut mailboxes = Vec::new();
-        let name = self.p.consume_phrase(false);
 
-        if name.is_some() {
-            if !self.p.eof() && self.p.peek() != ':' {
-                None
-            } else {
+        while !self.p.eof() && self.p.peek() != ';' {
+            mailboxes.push(try!(self.parse_mailbox()));
+
+            if !self.p.eof() && self.p.peek() == ',' {
                 self.p.consume_char();
-                while !self.p.eof() && self.p.peek() != ';' {
-                    match self.parse_mailbox() {
-                        Some(mbox) => mailboxes.push(mbox),
-                        None => {},
-                    }
-
-                    if !self.p.eof() && self.p.peek() == ',' {
-                        self.p.consume_char();
-                    }
-                }
-
-                Some(Address::Group(name.unwrap(), mailboxes))
             }
-        } else {
-            None
-        }
+        };
+
+        Ok(Address::Group(name, mailboxes))
     }
 
     #[stable]
-    pub fn parse_mailbox(&mut self) -> Option<Mailbox> {
+    pub fn parse_mailbox(&mut self) -> ParsingResult<Mailbox> {
         // Push the current position of the parser so we can back out later
         self.p.push_position();
-        let mut result = self.parse_name_addr();
-        if result.is_none() {
-            // Revert back to our original position to try to parse an addr-spec
-            self.p.pop_position();
-
-            let addr_spec = self.parse_addr_spec();
-            if addr_spec.is_some() {
-                result = Some(Mailbox::new(addr_spec.unwrap()));
+        match self.parse_name_addr() {
+            Ok(result) => Ok(result),
+            Err(x) => {
+                // Revert back to our original position to try to parse an addr-spec
+                self.p.pop_position();
+                Ok(Mailbox::new(try!(self.parse_addr_spec())))
             }
         }
-
-        result
     }
 
-    fn parse_name_addr(&mut self) -> Option<Mailbox> {
+    fn parse_name_addr(&mut self) -> ParsingResult<Mailbox> {
         // Find display-name
         let display_name = self.p.consume_phrase(false);
         self.p.consume_linear_whitespace();
+        if self.p.eof() {
+            return Err(ParsingError::new("Reached EOF while parsing address header.".to_string()));
+        };
+
         // Find angle-addr
-        if !self.p.eof() && self.p.peek() == '<' {
+        if self.p.peek() != '<' {
+            return Err(ParsingError::new("Could only find display name while parsing address header.".to_string()));
+        } else {
             self.p.consume_char();
-            let addr = self.parse_addr_spec();
-            if self.p.consume_char() != '>' {
-                // Fail because we should have a closing RANGLE here (to match the opening one)
-                None
-            } else {
-                match (display_name, addr) {
-                    (Some(name), Some(addr)) => Some(Mailbox::new_with_name(name, addr)),
-                    (None, Some(addr)) => Some(Mailbox::new(addr)),
-                    (_, _) => None,
-                }
-            }
+        };
+
+        let addr = try!(self.parse_addr_spec());
+        if self.p.consume_char() != '>' {
+            // Fail because we should have a closing RANGLE here (to match the opening one)
+            Err(ParsingError::new("Missing '>' at end while parsing address header.".to_string()))
         } else {
-            None
+            Ok(match display_name {
+                Some(name) => Mailbox::new_with_name(name, addr),
+                None => Mailbox::new(addr)
+            })
         }
     }
 
-    fn parse_addr_spec(&mut self) -> Option<String> {
+    fn parse_addr_spec(&mut self) -> ParsingResult<String> {
         // local-part is a phrase, but allows dots in atoms
-        let local_part = self.p.consume_phrase(true);
-        if self.p.eof() || self.p.consume_char() != '@' {
-            None
-        } else {
-            let domain = self.parse_domain();
-            if local_part.is_some() && domain.is_some() {
-                Some(format!("{}@{}", local_part.unwrap(), domain.unwrap()))
-            } else {
-                None
-            }
-        }
+        let local_part = match self.p.consume_phrase(true) {
+            Some(x) => x,
+            None => return Err(ParsingError::new("Couldn't find local part while parsing address.".to_string()))
+        };
+
+        if self.p.eof() {
+            return Err(ParsingError::new("Reached EOF while parsing address.".to_string()));
+        };
+
+        let at_char = self.p.consume_char();
+        if at_char != '@' {
+            return Err(ParsingError::new(format!("Expected @, found {} instead.", at_char)));
+        };
+
+        let domain = try!(self.parse_domain());
+        Ok(format!("{}@{}", local_part, domain))
     }
 
-    fn parse_domain(&mut self) -> Option<String> {
+    fn parse_domain(&mut self) -> ParsingResult<String> {
         // TODO: support domain-literal
-        self.p.consume_atom(true)
+        match self.p.consume_atom(true) {
+            Some(x) => Ok(x),
+            None => Err(ParsingError::new("Failed to parse domain.".to_string()))
+        }
     }
 }
 
@@ -288,7 +293,7 @@ mod tests {
         assert_eq!(addr.name.unwrap(), "Joe Blogs".to_string());
         assert_eq!(addr.address, "joe@example.org".to_string());
 
-        assert!("Not an address".parse::<Mailbox>().is_none());
+        assert!("Not an address".parse::<Mailbox>().is_err());
     }
 
     #[test]
@@ -339,7 +344,10 @@ mod tests {
             Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
             Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
+    }
 
+    #[test]
+    fn test_address_list_parsing_groups() {
         let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>; <third@example.org>, <fourth@example.org>");
         assert_eq!(parser.parse_address_list(), vec![
             Address::new_group("A Group".to_string(), vec![

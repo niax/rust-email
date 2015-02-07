@@ -4,6 +4,7 @@ use super::header::{
 };
 use super::rfc2045::Rfc2045Parser;
 use super::rfc2047::decode_q_encoding;
+use super::results::{ParsingResult,ParsingError};
 
 use std::ascii::OwnedAsciiExt;
 use std::collections::HashMap;
@@ -24,36 +25,36 @@ pub struct MimeContentTypeHeader {
 }
 
 impl FromHeader for MimeContentTypeHeader {
-    fn from_header(value: String) -> Option<MimeContentTypeHeader> {
+    fn from_header(value: String) -> ParsingResult<MimeContentTypeHeader> {
         let mut parser = Rfc2045Parser::new(value.as_slice());
         let (value, params) = parser.consume_all();
 
         let mime_parts: Vec<&str> = value.as_slice().splitn(2, '/').collect();
 
         if mime_parts.len() == 2 {
-            Some(MimeContentTypeHeader {
+            Ok(MimeContentTypeHeader {
                 content_type: (mime_parts[0].to_string(), mime_parts[1].to_string()),
                 params: params
             })
         } else {
-            None
+            Err(ParsingError::new("Too many mime parts.".to_string()))  // FIXME
         }
     }
 }
 
 impl ToHeader for MimeContentTypeHeader {
-    fn to_header(value: MimeContentTypeHeader) -> Option<String> {
+    fn to_header(value: MimeContentTypeHeader) -> ParsingResult<String> {
         let (mime_major, mime_minor) = value.content_type;
         let mut result = format!("{}/{}", mime_major, mime_minor);
         for (key, val) in value.params.iter() {
             result = format!("{} {}={};", result, key, val);
         }
-        Some(result)
+        Ok(result)
     }
 }
 
 /// Special header type for the Content-Transfer-Encoding header.
-#[derive(Show,PartialEq,Eq,Copy)]
+#[derive(Debug,PartialEq,Eq,Copy)]
 #[stable]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
@@ -84,13 +85,13 @@ impl MimeContentTransferEncoding {
 }
 
 impl FromHeader for MimeContentTransferEncoding {
-    fn from_header(value: String) -> Option<MimeContentTransferEncoding> {
+    fn from_header(value: String) -> ParsingResult<MimeContentTransferEncoding> {
         let lower = value.into_ascii_lowercase();
         match lower.as_slice() {
-            "7bit" | "8bit" | "binary" => Some(MimeContentTransferEncoding::Identity),
-            "quoted-printable" => Some(MimeContentTransferEncoding::QuotedPrintable),
-            "base64" => Some(MimeContentTransferEncoding::Base64),
-            _ => None,
+            "7bit" | "8bit" | "binary" => Ok(MimeContentTransferEncoding::Identity),
+            "quoted-printable" => Ok(MimeContentTransferEncoding::QuotedPrintable),
+            "base64" => Ok(MimeContentTransferEncoding::Base64),
+            x => Err(ParsingError::new(format!("Invalid encoding: {}", x)))
         }
     }
 }
@@ -98,6 +99,7 @@ impl FromHeader for MimeContentTransferEncoding {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::results::ParsingResult;
     use super::super::header::Header;
 
     use std::collections::HashMap;

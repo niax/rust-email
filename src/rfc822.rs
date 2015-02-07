@@ -8,6 +8,7 @@ use chrono::{
 };
 
 use super::rfc5322::Rfc5322Parser;
+use super::results::{ParsingError,ParsingResult};
 
 static DAYS_OF_WEEK: [&'static str; 7] = [
     "mon", "tue", "wed", "thu",
@@ -59,7 +60,10 @@ impl<'s> Rfc822DateParser<'s> {
     #[inline]
     fn consume_u32(&mut self) -> Option<u32> {
         match self.parser.consume_word(false) {
-            Some(s) => s.parse(),
+            Some(s) => match s.parse() {  // FIXME
+                Ok(x) => Some(x),
+                Err(_) => None
+            },
             None => None,
         }
     }
@@ -174,12 +178,12 @@ impl<'s> Rfc822DateParser<'s> {
                 };
                 // Try to parse zone as an int
                 match s_slice.parse::<i32>() {
-                    Some(i) => {
+                    Ok(i) => {
                         let offset_hours = i / 100;
                         let offset_mins = i % 100;
                         Some(offset_hours * 3600 + offset_mins * 60)
                     },
-                    None => {
+                    Err(_) => {
                         // Isn't an int, so try to use the strings->TZ hash.
                         match TZ_DATA.get(s_slice) {
                             Some(offset) => Some(offset.clone()),
