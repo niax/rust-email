@@ -8,7 +8,6 @@ use std::rc::Rc;
 use chrono::{
     DateTime,
     FixedOffset,
-    Offset,
     UTC,
 };
 
@@ -201,7 +200,7 @@ impl Header {
     }
 }
 
-impl fmt::String for Header {
+impl fmt::Display for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}: {}", self.name, self.value)
     }

@@ -8,7 +8,6 @@ use chrono::{
 };
 
 use super::rfc5322::Rfc5322Parser;
-use super::results::{ParsingError,ParsingResult};
 
 static DAYS_OF_WEEK: [&'static str; 7] = [
     "mon", "tue", "wed", "thu",

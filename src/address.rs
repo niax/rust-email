@@ -36,7 +36,7 @@ impl Address {
     }
 }
 
-impl fmt::String for Address {
+impl fmt::Display for Address {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Address::Mailbox(ref mbox) => mbox.fmt(fmt),
@@ -85,7 +85,7 @@ impl Mailbox {
     }
 }
 
-impl fmt::String for Mailbox {
+impl fmt::Display for Mailbox {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self.name {
             Some(ref name) => write!(fmt, "\"{}\" <{}>", name, self.address),
@@ -208,7 +208,7 @@ impl<'s> AddressParser<'s> {
         self.p.push_position();
         match self.parse_name_addr() {
             Ok(result) => Ok(result),
-            Err(x) => {
+            Err(_) => {
                 // Revert back to our original position to try to parse an addr-spec
                 self.p.pop_position();
                 Ok(Mailbox::new(try!(self.parse_addr_spec())))
