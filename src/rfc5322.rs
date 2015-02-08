@@ -233,41 +233,29 @@ impl<'s> Rfc5322Parser<'s> {
 
         while !self.eof() {
             self.consume_linear_whitespace();
-            let word = if self.peek() == '"' {
-                // Word is a quoted string
-                self.consume_quoted_string()
-            } else if self.peek().is_atext() {
-                self.consume_atom(allow_dot_atom)
-            } else {
-                // If it's not a quoted string, or an atom, it's no longer
-                // in a phrase, so stop.
-                break
+            let word = match self.consume_word(allow_dot_atom) {
+                Some(x) => x,
+                None => break // If it's not a word, it's no longer
+                              // in a phrase, so stop.
             };
 
-            if word.is_some() {
-                // Unwrap word so it lives long enough...
-                // XXX: word in this scope is `String`, in the parent scope, is `Option<String>`
-                let word = word.unwrap();
-                let w_slice = word.as_slice();
-                // RFC 2047 encoded words start with =?, end with ?=
-                let decoded_word =
-                    if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
-                        match decode_rfc2047(w_slice) {
-                            Some(w) => w,
-                            None => w_slice.to_string(),
-                        }
-                    } else {
-                        w_slice.to_string()
-                    };
-                
-                // Make sure we put a leading space on, if this isn't the first insertion
-                if phrase.len() > 0 {
-                    phrase.push_str(" ");
-                }
-                phrase.push_str(decoded_word.as_slice());
-            } else {
-                return None
+            let w_slice = word.as_slice();
+            // RFC 2047 encoded words start with =?, end with ?=
+            let decoded_word =
+                if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
+                    match decode_rfc2047(w_slice) {
+                        Some(w) => w,
+                        None => w_slice.to_string(),
+                    }
+                } else {
+                    w_slice.to_string()
+                };
+
+            // Make sure we put a leading space on, if this isn't the first insertion
+            if phrase.len() > 0 {
+                phrase.push_str(" ");
             }
+            phrase.push_str(decoded_word.as_slice());
         }
 
         if phrase.len() > 0 {
