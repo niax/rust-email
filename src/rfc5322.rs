@@ -208,10 +208,11 @@ impl<'s> Rfc5322Parser<'s> {
     /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
     #[unstable]
     pub fn consume_word(&mut self, allow_dot_atom: bool) -> Option<String> {
-        if self.peek() == '"' {
+        let p = self.peek();
+        if p == '"' {
             // Word is a quoted string
             self.consume_quoted_string()
-        } else if self.peek().is_atext() {
+        } else if p.is_atext() {
             // Word is an atom.
             self.consume_atom(allow_dot_atom)
         } else {
