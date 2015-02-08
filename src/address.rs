@@ -180,7 +180,7 @@ impl<'s> AddressParser<'s> {
     pub fn parse_group(&mut self) -> ParsingResult<Address> {
         let name = match self.p.consume_phrase(false) {
             Some(x) => x,
-            None => return Err(ParsingError::new("Couldn't find name.".to_string()))
+            None => return Err(ParsingError::new("Couldn't find group name.".to_string()))
         };
 
         if !self.p.eof() && self.p.peek() != ':' {
