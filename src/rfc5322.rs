@@ -231,6 +231,7 @@ impl<'s> Rfc5322Parser<'s> {
 
         while !self.eof() {
             self.consume_linear_whitespace();
+
             let word = match self.consume_word(allow_dot_atom) {
                 Some(x) => x,
                 None => break // If it's not a word, it's no longer
@@ -396,6 +397,13 @@ impl<'s> Rfc5322Parser<'s> {
     #[unstable]
     pub fn peek(&self) -> char {
         self.s.char_at(self.pos)
+    }
+
+    /// Get the unconsumed string. Should only be used for debugging purposes!
+    #[inline]
+    #[unstable]
+    pub fn peek_to_end(&self) -> &str {
+        &self.s[self.pos..]
     }
 
     /// Returns true if we have reached the end of the input.
