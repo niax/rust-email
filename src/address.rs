@@ -104,7 +104,7 @@ impl FromStr for Mailbox {
 
 impl FromHeader for Vec<Address> {
     fn from_header(value: String) -> ParsingResult<Vec<Address>> {
-        Ok(AddressParser::new(value.as_slice()).parse_address_list())
+        AddressParser::new(value.as_slice()).parse_address_list()
     }
 }
 
@@ -148,21 +148,29 @@ impl<'s> AddressParser<'s> {
     }
 
     #[stable]
-    pub fn parse_address_list(&mut self) -> Vec<Address> {
+    pub fn parse_address_list(&mut self) -> ParsingResult<Vec<Address>> {
         let mut result = Vec::new();
 
+        let mut i = 0;
         while !self.p.eof() {
+            if i > 100 {
+                panic!("DAM");
+            };
+            i += 1;
             self.p.push_position();
 
             match self.parse_group() {
                 Ok(x) => result.push(x),
-                Err(_) => {
+                Err(e) => {
                     // If we failed to parse as group, try again as mailbox
                     self.p.pop_position();
-                    match self.parse_mailbox() {
-                        Ok(x) => result.push(Address::Mailbox(x)),
-                        Err(_) => ()
-                    };
+                    result.push(Address::Mailbox(match self.parse_mailbox() {
+                        Ok(x) => x,
+                        Err(e2) => return Err(ParsingError::new(
+                            format!("Failed to parse as group: {}\n\
+                                     Failed to parse as mailbox: {}", e, e2)
+                        ))
+                    }));
                 }
             };
 
@@ -173,7 +181,7 @@ impl<'s> AddressParser<'s> {
             }
         }
 
-        result
+        Ok(result)
     }
 
     #[stable]
@@ -247,7 +255,7 @@ impl<'s> AddressParser<'s> {
         // local-part is a phrase, but allows dots in atoms
         let local_part = match self.p.consume_phrase(true) {
             Some(x) => x,
-            None => return Err(ParsingError::new("Couldn't find local part while parsing address.".to_string()))
+            None => return Err(ParsingError::new(format!("Couldn't find local part while parsing address.")))
         };
 
         if self.p.eof() {
@@ -340,7 +348,7 @@ mod tests {
     #[test]
     fn test_address_list_parsing() {
         let mut parser = AddressParser::new("\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>");
-        assert_eq!(parser.parse_address_list(), vec![
+        assert_eq!(parser.parse_address_list().unwrap(), vec![
             Address::new_mailbox_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
             Address::new_mailbox_with_name("John Doe".to_string(), "john@example.org".to_string()),
         ]);
@@ -349,7 +357,7 @@ mod tests {
     #[test]
     fn test_address_list_parsing_groups() {
         let mut parser = AddressParser::new("A Group:\"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>; <third@example.org>, <fourth@example.org>");
-        assert_eq!(parser.parse_address_list(), vec![
+        assert_eq!(parser.parse_address_list().unwrap(), vec![
             Address::new_group("A Group".to_string(), vec![
                     Mailbox::new_with_name("Joe Blogs".to_string(), "joe@example.org".to_string()),
                     Mailbox::new_with_name("John Doe".to_string(), "john@example.org".to_string()),
