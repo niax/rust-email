@@ -212,12 +212,9 @@ impl<'s> Rfc5322Parser<'s> {
         if p == '"' {
             // Word is a quoted string
             self.consume_quoted_string()
-        } else if p.is_atext() {
-            // Word is an atom.
-            self.consume_atom(allow_dot_atom)
         } else {
-            // Is not a word!
-            None
+            // Word is an atom (or not a word)
+            self.consume_atom(allow_dot_atom)
         }
     }
 
