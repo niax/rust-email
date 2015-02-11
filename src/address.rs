@@ -151,12 +151,7 @@ impl<'s> AddressParser<'s> {
     pub fn parse_address_list(&mut self) -> ParsingResult<Vec<Address>> {
         let mut result = Vec::new();
 
-        let mut i = 0;
         while !self.p.eof() {
-            if i > 100 {
-                panic!("DAM");
-            };
-            i += 1;
             self.p.push_position();
 
             match self.parse_group() {
