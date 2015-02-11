@@ -150,7 +150,7 @@ impl<'s> AddressParser<'s> {
     #[stable]
     pub fn parse_address_list(&mut self) -> ParsingResult<Vec<Address>> {
         let mut result = Vec::new();
-        let mut expected_separator = ';';
+        let mut expected_separator: char;
 
         while !self.p.eof() {
             self.p.push_position();
