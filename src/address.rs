@@ -150,12 +150,17 @@ impl<'s> AddressParser<'s> {
     #[stable]
     pub fn parse_address_list(&mut self) -> ParsingResult<Vec<Address>> {
         let mut result = Vec::new();
+        let mut expected_separator = ';';
 
         while !self.p.eof() {
             self.p.push_position();
 
             match self.parse_group() {
-                Ok(x) => result.push(x),
+                Ok(x) => {
+                    // Is a group
+                    result.push(x);
+                    expected_separator = ';';
+                },
                 Err(e) => {
                     // If we failed to parse as group, try again as mailbox
                     self.p.pop_position();
@@ -166,11 +171,12 @@ impl<'s> AddressParser<'s> {
                                      Failed to parse as mailbox: {}", e, e2)
                         ))
                     }));
+                    expected_separator = ',';
                 }
             };
 
             self.p.consume_linear_whitespace();
-            if !self.p.eof() && self.p.peek() == ',' {
+            if !self.p.eof() && self.p.peek() == expected_separator {
                 // Clear the separator
                 self.p.consume_char();
             }
