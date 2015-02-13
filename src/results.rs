@@ -3,7 +3,7 @@ use std::error::Error;
 
 #[derive(Debug)]
 pub struct ParsingError {
-    desc: String,
+    desc: String,  // FIXME: Too basic
 }
 
 impl fmt::Display for ParsingError {
