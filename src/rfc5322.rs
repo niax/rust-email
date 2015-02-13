@@ -2,6 +2,7 @@
 
 use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
+use super::results::{ParsingError, ParsingResult};
 
 #[stable]
 pub const MIME_LINE_LENGTH: usize = 78us;
@@ -397,6 +398,31 @@ impl<'s> Rfc5322Parser<'s> {
     #[unstable]
     pub fn peek(&self) -> char {
         self.s.char_at(self.pos)
+    }
+
+    /// Check that `!self.eof() && self.peek() == c`
+    #[inline]
+    #[unstable]
+    pub fn assert_char(&self, c: char) -> ParsingResult<()> {
+        try!(self.assert_not_eof());
+
+        let actual_c = self.peek();
+        if c == actual_c {
+            Ok(())
+        } else {
+            Err(ParsingError::new(format!("Expected {}, got {}", c, actual_c)))
+        }
+    }
+
+    /// Check that we have not reached the end of the input.
+    #[inline]
+    #[unstable]
+    pub fn assert_not_eof(&self) -> ParsingResult<()> {
+        if self.eof() {
+            Err(ParsingError::new("Reached EOF.".to_string()))
+        } else {
+            Ok(())
+        }
     }
 
     /// Get the unconsumed string. Should only be used for debugging purposes!
