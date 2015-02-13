@@ -68,28 +68,31 @@ impl<'s> Rfc822DateParser<'s> {
         }
     }
 
-    fn consume_time(&mut self) -> Option<(u32, u32, u32)> {
-        let hour = self.consume_u32();
-        if !self.parser.eof() && self.parser.peek() == ':' {
-            self.parser.consume_char();
-            let minute = self.consume_u32();
-            // Seconds are optional, only try to parse if we see the next seperator.
-            let second = if !self.parser.eof() && self.parser.peek() == ':' {
+    fn consume_time(&mut self) -> ParsingResult<(u32, u32, u32)> {
+        let hour = match self.consume_u32() {
+            Some(x) => x,
+            None => return Err(ParsingError::new(
+                    "Failed to parse time: Expected hour, a number.".to_string()))
+        };
+
+        try!(self.parser.assert_char(':'));
+        self.parser.consume_char();
+
+        let minute = match self.consume_u32() {
+            Some(x) => x,
+            None => return Err(ParsingError::new("Failed to parse time: Expected minute.".to_string()))
+        };
+
+        // Seconds are optional, only try to parse if we see the next seperator.
+        let second = match self.parser.assert_char(':') {
+            Ok(_) => {
                 self.parser.consume_char();
                 self.consume_u32()
-            } else {
-                None
-            };
+            },
+            Err(_) => None
+        }.unwrap_or(0);
 
-            match (hour, minute, second) {
-                (Some(hour), Some(minute), Some(second)) => Some((hour, minute, second)),
-                // No seconds - default to 0
-                (Some(hour), Some(minute), None) => Some((hour, minute, 0)),
-                _ => None,
-            }
-        } else {
-            None
-        }
+        Ok((hour, minute, second))
     }
 
     fn consume_timezone_offset(&mut self) -> ParsingResult<i32> {
@@ -199,11 +202,9 @@ impl<'s> Rfc822DateParser<'s> {
         };
         self.parser.consume_linear_whitespace();
 
-        let time = match self.consume_time() {  // FIXME
-            Some(x) => x,
-            None => return Err(ParsingError::new("Expected time.".to_string()))
-        };
+        let time = try!(self.consume_time());
         self.parser.consume_linear_whitespace();
+
         let tz_offset = try!(self.consume_timezone_offset());
 
         let (hour, minute, second) = time;
