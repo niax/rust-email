@@ -133,11 +133,7 @@ impl FromHeader for String {
 impl FromHeader for DateTime<FixedOffset> {
     fn from_header(value: String) -> ParsingResult<DateTime<FixedOffset>> {
         let mut parser = Rfc822DateParser::new(value.as_slice());
-        match parser.consume_datetime() {
-            Some(x) => Ok(x),
-            // FIXME
-            None => Err(ParsingError::new("Failed to parse datetime.".to_string()))
-        }
+        parser.consume_datetime()
     }
 }
 
