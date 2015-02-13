@@ -224,27 +224,25 @@ impl MimeMessage {
     /// This takes into account any charset as set on the `Content-Type` header,
     /// decoding the bytes with this character set.
     #[experimental]
-    pub fn decoded_body_string(&self) -> Option<String> {
-        let content_type: Option<MimeContentTypeHeader> =
+    pub fn decoded_body_string(&self) -> ParsingResult<String> {
+        let bytes = match self.decoded_body_bytes() {  // FIXME
+            Some(x) => x,
+            None => return Err(ParsingError::new("Unable to get decoded body bytes.".to_string()))
+        };
+
+        let content_type: Result<MimeContentTypeHeader, _> =
             self.headers.get_value("Content-Type".to_string());
+        let charset = match content_type {
+            Ok(ct) => ct.params.get(&"charset".to_string()).cloned(),
+            Err(_) => None,
+        }.unwrap_or("us-ascii".to_string());
 
-        match self.decoded_body_bytes() {
-            Some(bytes) => {
-                let charset = match content_type {
-                    Some(ct) => {
-                        ct.params.get(&"charset".to_string()).cloned()
-                    }
-                    _ => None,
-                }.unwrap_or("us-ascii".to_string());
-
-                let decoder = encoding_from_whatwg_label(charset.as_slice());
-
-                match decoder {
-                    Some(d) => d.decode(&bytes[], DecoderTrap::Replace).ok(),
-                    _ => None,
-                }
+        match encoding_from_whatwg_label(charset.as_slice()) {
+            Some(decoder) => match decoder.decode(&bytes[], DecoderTrap::Replace) {
+                Ok(x) => Ok(x),
+                Err(e) => Err(ParsingError::new(format!("Unable to decode body: {}", e)))
             },
-            None => None,
+            None => Err(ParsingError::new(format!("Invalid encoding: {}", charset)))
         }
     }
 
@@ -254,10 +252,7 @@ impl MimeMessage {
         let content_type = try!({
             let header = headers.get("Content-Type".to_string());
             match header {
-                Some(h) => match h.get_value() {  // FIXME
-                    Some(x) => Ok(x),
-                    None => Err(ParsingError::new("Couldn't fine content type.".to_string()))
-                },
+                Some(h) => h.get_value(),
                 None => Ok(MimeContentTypeHeader {
                     content_type: ("text".to_string(), "plain".to_string()),
                     params: HashMap::new(),

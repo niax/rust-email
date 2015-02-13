@@ -192,11 +192,8 @@ impl Header {
     /// Get the value represented by this header, as parsed
     /// into whichever type `T`
     #[unstable]
-    pub fn get_value<T: FromHeader>(&self) -> Option<T> {
-        match FromHeader::from_header(self.value.clone()) {
-            Ok(x) => Some(x),
-            Err(_) => None
-        }
+    pub fn get_value<T: FromHeader>(&self) -> ParsingResult<T> {
+        FromHeader::from_header(self.value.clone())
     }
 }
 
@@ -294,10 +291,10 @@ impl HeaderMap {
 
     /// Get the last value of the header with `name`, as a decoded type.
     #[unstable]
-    pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
+    pub fn get_value<T: FromHeader>(&self, name: String) -> ParsingResult<T> {
         match self.get(name) {
             Some(ref header) => header.get_value(),
-            None => None,
+            None => Err(ParsingError::new("Couldn't find header value.".to_string())),
         }
     }
 
