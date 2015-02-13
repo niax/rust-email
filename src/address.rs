@@ -250,6 +250,7 @@ impl<'s> AddressParser<'s> {
         };
 
         try!(self.p.assert_char('@'));
+        self.p.consume_char();
 
         let domain = try!(self.parse_domain());
         Ok(format!("{}@{}", local_part, domain))
