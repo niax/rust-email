@@ -1,11 +1,13 @@
+#![feature(core,io,path,env)]
+
 extern crate email;
 
-use email::{MimeMessage, Header, Address};
-use std::old_io::{fs,File};
-use std::os;
+use email::MimeMessage;
+use std::old_io::File;
+use std::env;
 
 fn main() {
-    let args = os::args();
+    let args: Vec<_> = env::args().collect();
     assert!(args.len() > 1);
     let msg_path = Path::new(&args[1]);
 

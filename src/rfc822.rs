@@ -280,7 +280,7 @@ mod tests {
 
         for test in tests.into_iter() {
             let mut parser = Rfc822DateParser::new(test.input);
-            assert_eq!(parser.consume_datetime(), test.result);
+            assert_eq!(parser.consume_datetime().ok(), test.result);
         }
     }
 

@@ -378,7 +378,7 @@ mod tests {
 
         for test in tests.into_iter() {
             let header = Header::new("Test".to_string(), test.input.to_string());
-            let string_value = header.get_value::<String>();
+            let string_value = header.get_value::<String>().ok();
             assert_eq!(string_value, test.result.map(|s| { s.to_string() }));
         }
     }
@@ -386,15 +386,15 @@ mod tests {
     #[test]
     fn test_datetime_get_value() {
         let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
-        let dt_value = header.get_value::<DateTime<FixedOffset>>();
-        assert_eq!(dt_value, Some(FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7)));
+        let dt_value = header.get_value::<DateTime<FixedOffset>>().unwrap();
+        assert_eq!(dt_value, FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7));
     }
 
     #[test]
     fn test_datetime_utc_get_value() {
         let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
-        let dt_value = header.get_value::<DateTime<UTC>>();
-        assert_eq!(dt_value, Some(UTC.ymd(2014, 12, 17).and_hms(8, 35, 7)));
+        let dt_value = header.get_value::<DateTime<UTC>>().unwrap();
+        assert_eq!(dt_value, UTC.ymd(2014, 12, 17).and_hms(8, 35, 7));
     }
 
     #[test]

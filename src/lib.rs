@@ -1,4 +1,4 @@
-#![feature(hash,collections,core,std_misc)]
+#![feature(rand,hash,collections,core,std_misc)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate encoding;

@@ -151,7 +151,7 @@ mod tests {
 
         for test in tests.into_iter() {
             let header = Header::new("Content-Type".to_string(), test.input.to_string());
-            let parsed_header: Option<MimeContentTypeHeader> = header.get_value();
+            let parsed_header: Option<MimeContentTypeHeader> = header.get_value().ok();
 
             let result = match (parsed_header, test.result) {
                 (Some(given_result), Some(expected_result)) => {
@@ -187,7 +187,7 @@ mod tests {
 
         for (test, expected) in tests.into_iter() {
             let header = Header::new("Content-Transfer-Encoding".to_string(), test.to_string());
-            let parsed: Option<MimeContentTransferEncoding> = header.get_value();
+            let parsed: Option<MimeContentTransferEncoding> = header.get_value().ok();
             assert_eq!(parsed, expected);
         }
     }

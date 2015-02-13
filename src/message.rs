@@ -581,7 +581,7 @@ mod tests {
             let mut message = MimeMessage::new(test.body.to_string());
             message.headers = headers;
             let expected = test.result.map(|s| { s.to_string() });
-            assert_eq!(message.decoded_body_string(), expected);
+            assert_eq!(message.decoded_body_string().ok(), expected);
         }
     }
 
