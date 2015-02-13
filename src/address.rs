@@ -192,12 +192,9 @@ impl<'s> AddressParser<'s> {
             None => return Err(ParsingError::new(format!("Couldn't find group name: {}", self.p.peek_to_end())))
         };
 
-        if !self.p.eof() && self.p.peek() != ':' {
-            return Err(ParsingError::new(format!("Expected ':', found {}.",
-                                                 self.p.peek())));
-        };
-
+        try!(self.p.assert_char(':'));
         self.p.consume_char();
+
         let mut mailboxes = Vec::new();
 
         while !self.p.eof() && self.p.peek() != ';' {
@@ -229,16 +226,9 @@ impl<'s> AddressParser<'s> {
         // Find display-name
         let display_name = self.p.consume_phrase(false);
         self.p.consume_linear_whitespace();
-        if self.p.eof() {
-            return Err(ParsingError::new("Reached EOF while parsing address header.".to_string()));
-        };
 
-        // Find angle-addr
-        if self.p.peek() != '<' {
-            return Err(ParsingError::new("Could only find display name while parsing address header.".to_string()));
-        } else {
-            self.p.consume_char();
-        };
+        try!(self.p.assert_char('<'));
+        self.p.consume_char();
 
         let addr = try!(self.parse_addr_spec());
         if self.p.consume_char() != '>' {
@@ -259,14 +249,7 @@ impl<'s> AddressParser<'s> {
             None => return Err(ParsingError::new(format!("Couldn't find local part while parsing address.")))
         };
 
-        if self.p.eof() {
-            return Err(ParsingError::new("Reached EOF while parsing address.".to_string()));
-        };
-
-        let at_char = self.p.consume_char();
-        if at_char != '@' {
-            return Err(ParsingError::new(format!("Expected @, found {} instead.", at_char)));
-        };
+        try!(self.p.assert_char('@'));
 
         let domain = try!(self.parse_domain());
         Ok(format!("{}@{}", local_part, domain))
