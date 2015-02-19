@@ -37,7 +37,7 @@ impl FromHeader for MimeContentTypeHeader {
                 params: params
             })
         } else {
-            Err(ParsingError::new("Too many mime parts.".to_string()))  // FIXME
+            Err(ParsingError::new(format!("Invalid mimetype: {}", value)))
         }
     }
 }
