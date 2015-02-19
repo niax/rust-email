@@ -59,7 +59,7 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                 }
                 // = followed by a newline means a continuation
                 if hex_string.as_slice() != "\r\n" {
-                    match from_str_radix(hex_string.as_slice(), 16us) {
+                    match from_str_radix(hex_string.as_slice(), 16) {
                         Ok(char_val) => { result.push(char_val) },
                         Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
                     }
