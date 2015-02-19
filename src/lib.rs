@@ -1,9 +1,10 @@
-#![feature(rand,hash,collections,core,std_misc)]
+#![feature(hash,collections,core,std_misc)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate encoding;
 extern crate time;
 extern crate chrono;
+extern crate rand;
 
 #[macro_use]
 extern crate lazy_static;

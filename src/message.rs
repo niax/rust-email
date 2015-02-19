@@ -8,10 +8,11 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
-use std::rand::{thread_rng, Rng};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
+
+use rand::{thread_rng, Rng};
 
 const BOUNDARY_LENGTH: usize = 30;
 
