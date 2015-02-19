@@ -442,31 +442,26 @@ impl<'s> Rfc5322Parser<'s> {
 }
 
 /// Type for constructing RFC 5322 messages
-#[experimental]
 pub struct Rfc5322Builder {
     result: String
 }
 
 impl Rfc5322Builder {
     /// Make a new builder, with an empty string
-    #[experimental]
     pub fn new() -> Rfc5322Builder {
         Rfc5322Builder {
             result: "".to_string(),
         }
     }
 
-    #[experimental]
     pub fn result(&self) -> &String {
         &self.result
     }
 
-    #[experimental]
     pub fn emit_raw(&mut self, s: &str) {
         self.result.push_str(s);
     }
 
-    #[experimental]
     pub fn emit_folded(&mut self, s: &str) {
        let mut pos = 0us;
        let mut cur_len = 0us;

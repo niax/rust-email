@@ -105,7 +105,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_with_children(body: String, message_type: MimeMultipartType, children: Vec<MimeMessage>) -> MimeMessage {
         let mut message = MimeMessage::new_blank_message();
         message.body = body;
@@ -115,7 +114,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_with_boundary(body: String,
                              message_type: MimeMultipartType,
                              children: Vec<MimeMessage>,
@@ -129,7 +127,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_blank_message() -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
@@ -183,7 +180,6 @@ impl MimeMessage {
         }
     }
 
-    #[experimental]
     pub fn as_string(&self) -> String {
         let mut builder = Rfc5322Builder::new();
 
@@ -211,7 +207,6 @@ impl MimeMessage {
     }
 
     /// Decode the body of this message, as a series of bytes
-    #[experimental]
     pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
         let transfer_encoding: MimeContentTransferEncoding =
             self.headers.get_value("Content-Transfer-Encoding".to_string())
@@ -223,7 +218,6 @@ impl MimeMessage {
     ///
     /// This takes into account any charset as set on the `Content-Type` header,
     /// decoding the bytes with this character set.
-    #[experimental]
     pub fn decoded_body_string(&self) -> ParsingResult<String> {
         let bytes = match self.decoded_body_bytes() {  // FIXME
             Some(x) => x,
