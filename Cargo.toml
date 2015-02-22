@@ -11,6 +11,7 @@ license = "MIT"
 [dependencies]
 encoding = "~0.2.12"
 time = "~0.1.7"
-chrono = "~0.1.7"
+chrono = "~0.2.1"
 lazy_static = "~0.1.4"
 rustc-serialize = "0.2"
+rand = "~0.1.2"

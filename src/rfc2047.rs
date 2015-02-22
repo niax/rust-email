@@ -33,7 +33,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         match (bytes, decoder) {
             (Ok(b), Some(d)) => {
-                d.decode(&b[], DecoderTrap::Replace).ok()
+                d.decode(&b, DecoderTrap::Replace).ok()
             }
             _ => None,
         }
@@ -44,7 +44,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
 
-    let mut pos = 0us;
+    let mut pos = 0;
 
     while pos < s.len() {
         let c = s.char_range_at(pos);
@@ -59,9 +59,9 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                 }
                 // = followed by a newline means a continuation
                 if hex_string.as_slice() != "\r\n" {
-                    match from_str_radix(hex_string.as_slice(), 16us) {
-                        Some(char_val) => { result.push(char_val) },
-                        None => { return Err(format!("'{}' is not a hex number", hex_string)) },
+                    match from_str_radix(hex_string.as_slice(), 16) {
+                        Ok(char_val) => { result.push(char_val) },
+                        Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
                     }
                 }
                 inner_pos

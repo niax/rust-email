@@ -2,9 +2,10 @@
 
 use super::header::{Header, HeaderMap};
 use super::rfc2047::decode_rfc2047;
+use super::results::{ParsingError, ParsingResult};
 
 #[stable]
-pub const MIME_LINE_LENGTH: usize = 78us;
+pub const MIME_LINE_LENGTH: usize = 78;
 
 trait Rfc5322Character {
     /// Is considered a special character by RFC 5322 Section 3.2.3
@@ -65,7 +66,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
             s: source,
-            pos: 0us,
+            pos: 0,
             pos_stack: Vec::new(),
         }
     }
@@ -208,15 +209,13 @@ impl<'s> Rfc5322Parser<'s> {
     /// If `allow_dot_atom` is true, then `atom` can be a `dot-atom` in this phrase.
     #[unstable]
     pub fn consume_word(&mut self, allow_dot_atom: bool) -> Option<String> {
-        if self.peek() == '"' {
+        let p = self.peek();
+        if p == '"' {
             // Word is a quoted string
             self.consume_quoted_string()
-        } else if self.peek().is_atext() {
-            // Word is an atom.
-            self.consume_atom(allow_dot_atom)
         } else {
-            // Is not a word!
-            None
+            // Word is an atom (or not a word)
+            self.consume_atom(allow_dot_atom)
         }
     }
 
@@ -233,41 +232,30 @@ impl<'s> Rfc5322Parser<'s> {
 
         while !self.eof() {
             self.consume_linear_whitespace();
-            let word = if self.peek() == '"' {
-                // Word is a quoted string
-                self.consume_quoted_string()
-            } else if self.peek().is_atext() {
-                self.consume_atom(allow_dot_atom)
-            } else {
-                // If it's not a quoted string, or an atom, it's no longer
-                // in a phrase, so stop.
-                break
+
+            let word = match self.consume_word(allow_dot_atom) {
+                Some(x) => x,
+                None => break // If it's not a word, it's no longer
+                              // in a phrase, so stop.
             };
 
-            if word.is_some() {
-                // Unwrap word so it lives long enough...
-                // XXX: word in this scope is `String`, in the parent scope, is `Option<String>`
-                let word = word.unwrap();
-                let w_slice = word.as_slice();
-                // RFC 2047 encoded words start with =?, end with ?=
-                let decoded_word =
-                    if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
-                        match decode_rfc2047(w_slice) {
-                            Some(w) => w,
-                            None => w_slice.to_string(),
-                        }
-                    } else {
-                        w_slice.to_string()
-                    };
-                
-                // Make sure we put a leading space on, if this isn't the first insertion
-                if phrase.len() > 0 {
-                    phrase.push_str(" ");
-                }
-                phrase.push_str(decoded_word.as_slice());
-            } else {
-                return None
+            let w_slice = word.as_slice();
+            // RFC 2047 encoded words start with =?, end with ?=
+            let decoded_word =
+                if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
+                    match decode_rfc2047(w_slice) {
+                        Some(w) => w,
+                        None => w_slice.to_string(),
+                    }
+                } else {
+                    w_slice.to_string()
+                };
+
+            // Make sure we put a leading space on, if this isn't the first insertion
+            if phrase.len() > 0 {
+                phrase.push_str(" ");
             }
+            phrase.push_str(decoded_word.as_slice());
         }
 
         if phrase.len() > 0 {
@@ -412,6 +400,38 @@ impl<'s> Rfc5322Parser<'s> {
         self.s.char_at(self.pos)
     }
 
+    /// Check that `!self.eof() && self.peek() == c`
+    #[inline]
+    #[unstable]
+    pub fn assert_char(&self, c: char) -> ParsingResult<()> {
+        try!(self.assert_not_eof());
+
+        let actual_c = self.peek();
+        if c == actual_c {
+            Ok(())
+        } else {
+            Err(ParsingError::new(format!("Expected {}, got {}", c, actual_c)))
+        }
+    }
+
+    /// Check that we have not reached the end of the input.
+    #[inline]
+    #[unstable]
+    pub fn assert_not_eof(&self) -> ParsingResult<()> {
+        if self.eof() {
+            Err(ParsingError::new("Reached EOF.".to_string()))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Get the unconsumed string. Should only be used for debugging purposes!
+    #[inline]
+    #[unstable]
+    pub fn peek_to_end(&self) -> &str {
+        &self.s[self.pos..]
+    }
+
     /// Returns true if we have reached the end of the input.
     #[inline]
     #[unstable]
@@ -422,36 +442,31 @@ impl<'s> Rfc5322Parser<'s> {
 }
 
 /// Type for constructing RFC 5322 messages
-#[experimental]
 pub struct Rfc5322Builder {
     result: String
 }
 
 impl Rfc5322Builder {
     /// Make a new builder, with an empty string
-    #[experimental]
     pub fn new() -> Rfc5322Builder {
         Rfc5322Builder {
             result: "".to_string(),
         }
     }
 
-    #[experimental]
     pub fn result(&self) -> &String {
         &self.result
     }
 
-    #[experimental]
     pub fn emit_raw(&mut self, s: &str) {
         self.result.push_str(s);
     }
 
-    #[experimental]
     pub fn emit_folded(&mut self, s: &str) {
-       let mut pos = 0us;
-       let mut cur_len = 0us;
-       let mut last_space = 0us;
-       let mut last_cut = 0us;
+       let mut pos = 0;
+       let mut cur_len = 0;
+       let mut last_space = 0;
+       let mut last_cut = 0;
 
        while pos < s.len() {
            let c_range = s.char_range_at(pos);

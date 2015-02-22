@@ -4,10 +4,11 @@ use std::collections::HashMap;
 use chrono::{
     DateTime,
     FixedOffset,
-    Offset,
 };
+use chrono::offset::TimeZone;
 
 use super::rfc5322::Rfc5322Parser;
+use super::results::{ParsingError, ParsingResult};
 
 static DAYS_OF_WEEK: [&'static str; 7] = [
     "mon", "tue", "wed", "thu",
@@ -59,32 +60,69 @@ impl<'s> Rfc822DateParser<'s> {
     #[inline]
     fn consume_u32(&mut self) -> Option<u32> {
         match self.parser.consume_word(false) {
-            Some(s) => s.parse(),
+            Some(s) => match s.parse() {  // FIXME
+                Ok(x) => Some(x),
+                Err(_) => None
+            },
             None => None,
         }
     }
 
-    fn consume_time(&mut self) -> Option<(u32, u32, u32)> {
-        let hour = self.consume_u32();
-        if !self.parser.eof() && self.parser.peek() == ':' {
-            self.parser.consume_char();
-            let minute = self.consume_u32();
-            // Seconds are optional, only try to parse if we see the next seperator.
-            let second = if !self.parser.eof() && self.parser.peek() == ':' {
+    fn consume_time(&mut self) -> ParsingResult<(u32, u32, u32)> {
+        let hour = match self.consume_u32() {
+            Some(x) => x,
+            None => return Err(ParsingError::new(
+                    "Failed to parse time: Expected hour, a number.".to_string()))
+        };
+
+        try!(self.parser.assert_char(':'));
+        self.parser.consume_char();
+
+        let minute = match self.consume_u32() {
+            Some(x) => x,
+            None => return Err(ParsingError::new("Failed to parse time: Expected minute.".to_string()))
+        };
+
+        // Seconds are optional, only try to parse if we see the next seperator.
+        let second = match self.parser.assert_char(':') {
+            Ok(_) => {
                 self.parser.consume_char();
                 self.consume_u32()
-            } else {
-                None
-            };
+            },
+            Err(_) => None
+        }.unwrap_or(0);
 
-            match (hour, minute, second) {
-                (Some(hour), Some(minute), Some(second)) => Some((hour, minute, second)),
-                // No seconds - default to 0
-                (Some(hour), Some(minute), None) => Some((hour, minute, 0)),
-                _ => None,
-            }
-        } else {
-            None
+        Ok((hour, minute, second))
+    }
+
+    fn consume_timezone_offset(&mut self) -> ParsingResult<i32> {
+        match self.parser.consume_word(false) {
+            Some(s) => {
+                // from_str doesn't like leading '+' to indicate positive,
+                // so strip it off if it's there.
+                let mut s_slice = s.as_slice();
+                s_slice = if s_slice.starts_with("+") {
+                    &s_slice[1..]
+                } else {
+                    s_slice
+                };
+                // Try to parse zone as an int
+                match s_slice.parse::<i32>() {
+                    Ok(i) => {
+                        let offset_hours = i / 100;
+                        let offset_mins = i % 100;
+                        Ok(offset_hours * 3600 + offset_mins * 60)
+                    },
+                    Err(_) => {
+                        // Isn't an int, so try to use the strings->TZ hash.
+                        match TZ_DATA.get(s_slice) {
+                            Some(offset) => Ok(offset.clone()),
+                            None => Err(ParsingError::new(format!("Invalid timezone: {}", s_slice)))
+                        }
+                    }
+                }
+            },
+            None => Err(ParsingError::new("Expected timezone offset.".to_string()))
         }
     }
 
@@ -104,13 +142,13 @@ impl<'s> Rfc822DateParser<'s> {
     /// fn main() {
     ///     let mut p = Rfc822DateParser::new("Thu, 18 Dec 2014 21:07:22 +0100");
     ///     let d = p.consume_datetime().unwrap();
-    ///     let as_utc = d.with_offset(UTC);
+    ///     let as_utc = d.with_timezone(&UTC);
     ///
     ///     assert_eq!(d, as_utc);
     /// }
     /// ```
     #[unstable]
-    pub fn consume_datetime(&mut self) -> Option<DateTime<FixedOffset>> {
+    pub fn consume_datetime(&mut self) -> ParsingResult<DateTime<FixedOffset>> {
         // Handle the optional day ","
         self.parser.push_position();
         let day_of_week = self.parser.consume_word(false);
@@ -129,79 +167,53 @@ impl<'s> Rfc822DateParser<'s> {
             self.parser.pop_position();
         }
 
-        let day_of_month = self.consume_u32();
+        let day_of_month = match self.consume_u32() {
+            Some(x) => x,
+            None => return Err(ParsingError::new("Expected day of month, a number.".to_string()))
+        };
         self.parser.consume_linear_whitespace();
 
         let month = match self.parser.consume_word(false) {
+            // FIXME: Move into consume_month?
             Some(s) => {
                 let lower_month = s.into_ascii_lowercase();
                 // Add one because months are 1 indexed, array is 0 indexed.
-                MONTHS.position_elem(&lower_month.as_slice()).map(|i| { (i + 1) as u32 })
+                match MONTHS.position_elem(&lower_month.as_slice()).map(|i| { (i + 1) as u32 }) {
+                    Some(x) => x,
+                    None => return Err(ParsingError::new(format!("Invalid month: {}", lower_month)))
+                }
             },
-            None => None,
+            None => return Err(ParsingError::new("Expected month.".to_string()))
         };
         self.parser.consume_linear_whitespace();
 
         let year = match self.consume_u32() {
             Some(i) => {
-                Some(
-                    // See RFC5322 4.3 for justification of obsolete year format handling.
-                    match i {
-                        // 2 digit year between 0 and 49 is assumed to be in the 2000s
-                        0...49 => { i + 2000 },
-                        // 2 digit year greater than 50 and 3 digit years are added to 1900
-                        50...999 => { i + 1900 },
-                        _ => { i },
-                    }
-                )
-            },
-            None => None,
-        };
-        self.parser.consume_linear_whitespace();
-
-        let time = self.consume_time();
-        self.parser.consume_linear_whitespace();
-
-        let tz_offset = match self.parser.consume_word(false) {
-            Some(s) => {
-                // from_str doesn't like leading '+' to indicate positive,
-                // so strip it off if it's there.
-                let mut s_slice = s.as_slice();
-                s_slice = if s_slice.starts_with("+") {
-                    &s_slice[1..]
-                } else {
-                    s_slice
-                };
-                // Try to parse zone as an int
-                match s_slice.parse::<i32>() {
-                    Some(i) => {
-                        let offset_hours = i / 100;
-                        let offset_mins = i % 100;
-                        Some(offset_hours * 3600 + offset_mins * 60)
-                    },
-                    None => {
-                        // Isn't an int, so try to use the strings->TZ hash.
-                        match TZ_DATA.get(s_slice) {
-                            Some(offset) => Some(offset.clone()),
-                            None => None
-                        }
-                    }
+                // See RFC5322 4.3 for justification of obsolete year format handling.
+                match i {
+                    // 2 digit year between 0 and 49 is assumed to be in the 2000s
+                    0...49 => { i + 2000 },
+                    // 2 digit year greater than 50 and 3 digit years are added to 1900
+                    50...999 => { i + 1900 },
+                    _ => { i },
                 }
             },
-            None => None
+            None => return Err(ParsingError::new("Expected year.".to_string())),
         };
+        self.parser.consume_linear_whitespace();
 
-        match (year, month, day_of_month, time, tz_offset) {
-            (Some(year), Some(month), Some(day_of_month), Some((hour, minute, second)), Some(tz_offset)) => {
-                Some(FixedOffset::east(tz_offset).ymd(
-                    year as i32, month, day_of_month
-                ).and_hms(
-                    hour, minute, second
-                ))
-            },
-            _ => None
-        }
+        let time = try!(self.consume_time());
+        self.parser.consume_linear_whitespace();
 
+        let tz_offset = try!(self.consume_timezone_offset());
+
+        let (hour, minute, second) = time;
+
+        Ok(FixedOffset::east(tz_offset).ymd(
+            year as i32, month, day_of_month
+        ).and_hms(
+            hour, minute, second
+        ))
     }
 }
 
@@ -211,8 +223,8 @@ mod tests {
     use chrono::{
         DateTime,
         FixedOffset,
-        Offset,
     };
+    use chrono::offset::TimeZone;
 
     #[test]
     fn test_time_parse() {
@@ -268,7 +280,7 @@ mod tests {
 
         for test in tests.into_iter() {
             let mut parser = Rfc822DateParser::new(test.input);
-            assert_eq!(parser.consume_datetime(), test.result);
+            assert_eq!(parser.consume_datetime().ok(), test.result);
         }
     }
 

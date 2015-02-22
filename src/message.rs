@@ -1,5 +1,6 @@
 use super::header::{HeaderMap, Header};
 use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
+use super::results::{ParsingResult,ParsingError};
 use super::mimeheaders::{
     MimeContentType,
     MimeContentTypeHeader,
@@ -7,15 +8,16 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
-use std::rand::{thread_rng, Rng};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
 
+use rand::{thread_rng, Rng};
+
 const BOUNDARY_LENGTH: usize = 30;
 
 /// Marks the type of a multipart message
-#[derive(Eq,PartialEq,Show,Copy)]
+#[derive(Eq,PartialEq,Debug,Copy)]
 #[stable]
 pub enum MimeMultipartType {
     /// Entries which are independent.
@@ -104,7 +106,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_with_children(body: String, message_type: MimeMultipartType, children: Vec<MimeMessage>) -> MimeMessage {
         let mut message = MimeMessage::new_blank_message();
         message.body = body;
@@ -114,7 +115,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_with_boundary(body: String,
                              message_type: MimeMultipartType,
                              children: Vec<MimeMessage>,
@@ -128,7 +128,6 @@ impl MimeMessage {
         message
     }
 
-    #[experimental]
     pub fn new_blank_message() -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
@@ -174,15 +173,14 @@ impl MimeMessage {
     ///
     /// Be warned that each sub-message that fails to be parsed will be thrown away.
     #[unstable]
-    pub fn parse(s: &str) -> Option<MimeMessage> {
+    pub fn parse(s: &str) -> ParsingResult<MimeMessage> {
         let mut parser = Rfc5322Parser::new(s);
         match parser.consume_message() {
             Some((headers, body)) => MimeMessage::from_headers(headers, body),
-            None => None,
+            None => Err(ParsingError::new("Couldn't parse MIME message.".to_string()))
         }
     }
 
-    #[experimental]
     pub fn as_string(&self) -> String {
         let mut builder = Rfc5322Builder::new();
 
@@ -210,7 +208,6 @@ impl MimeMessage {
     }
 
     /// Decode the body of this message, as a series of bytes
-    #[experimental]
     pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
         let transfer_encoding: MimeContentTransferEncoding =
             self.headers.get_value("Content-Transfer-Encoding".to_string())
@@ -222,89 +219,81 @@ impl MimeMessage {
     ///
     /// This takes into account any charset as set on the `Content-Type` header,
     /// decoding the bytes with this character set.
-    #[experimental]
-    pub fn decoded_body_string(&self) -> Option<String> {
-        let content_type: Option<MimeContentTypeHeader> =
+    pub fn decoded_body_string(&self) -> ParsingResult<String> {
+        let bytes = match self.decoded_body_bytes() {  // FIXME
+            Some(x) => x,
+            None => return Err(ParsingError::new("Unable to get decoded body bytes.".to_string()))
+        };
+
+        let content_type: Result<MimeContentTypeHeader, _> =
             self.headers.get_value("Content-Type".to_string());
+        let charset = match content_type {
+            Ok(ct) => ct.params.get(&"charset".to_string()).cloned(),
+            Err(_) => None,
+        }.unwrap_or("us-ascii".to_string());
 
-        match self.decoded_body_bytes() {
-            Some(bytes) => {
-                let charset = match content_type {
-                    Some(ct) => {
-                        ct.params.get(&"charset".to_string()).cloned()
-                    }
-                    _ => None,
-                }.unwrap_or("us-ascii".to_string());
-
-                let decoder = encoding_from_whatwg_label(charset.as_slice());
-
-                match decoder {
-                    Some(d) => d.decode(&bytes[], DecoderTrap::Replace).ok(),
-                    _ => None,
-                }
+        match encoding_from_whatwg_label(charset.as_slice()) {
+            Some(decoder) => match decoder.decode(&bytes, DecoderTrap::Replace) {
+                Ok(x) => Ok(x),
+                Err(e) => Err(ParsingError::new(format!("Unable to decode body: {}", e)))
             },
-            None => None,
+            None => Err(ParsingError::new(format!("Invalid encoding: {}", charset)))
         }
     }
 
     // Make a message from a header map and body, parsing out any multi-part
     // messages that are discovered by looking at the Content-Type header.
-    fn from_headers(headers: HeaderMap, body: String) -> Option<MimeMessage> {
-        let content_type = {
-            let header =  headers.get("Content-Type".to_string());
+    fn from_headers(headers: HeaderMap, body: String) -> ParsingResult<MimeMessage> {
+        let content_type = try!({
+            let header = headers.get("Content-Type".to_string());
             match header {
                 Some(h) => h.get_value(),
-                None => Some(MimeContentTypeHeader {
+                None => Ok(MimeContentTypeHeader {
                     content_type: ("text".to_string(), "plain".to_string()),
                     params: HashMap::new(),
                 })
             }
+        });
+
+        // Pull out the major mime type and the boundary (if it exists)
+        let (mime_type, sub_mime_type) = content_type.content_type;
+        let boundary = content_type.params.get(&"boundary".to_string());
+
+        let mut message = match mime_type.as_slice() {
+            // Only consider a multipart message if we have a boundary, otherwise don't
+            // bother and just assume it's a single message.
+            "multipart" if boundary.is_some() => {
+                let boundary = boundary.unwrap();
+                // Pull apart the message on the boundary.
+                let mut parts = MimeMessage::split_boundary(&body, boundary);
+                // Pop off the first message, as it's part of the parent.
+                let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
+                // Parse out each of the child parts, recursively downwards.
+                // Filtering out and unwrapping None as we go.
+                let message_parts: Vec<MimeMessage> = parts
+                    .iter()
+                    .filter_map(|part| match MimeMessage::parse(part.as_slice()) {
+                        Ok(x) => Some(x),
+                        Err(_) => None
+                    })
+                    .collect();
+                // It should be safe to unwrap the multipart type here because we know the main
+                // mimetype is "multipart"
+                let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
+
+                MimeMessage::new_with_boundary(pre_body, multipart_type, message_parts, boundary.clone())
+            },
+            _ => MimeMessage::new(body),
         };
 
-        if content_type.is_none() {
-            // If we failed to parse the Content-Type header, something went wrong, so bail.
-            None
-        } else {
-            let content_type = content_type.unwrap();
-            // Pull out the major mime type and the boundary (if it exists)
-            let (mime_type, sub_mime_type) = content_type.content_type;
-            let boundary = content_type.params.get(&"boundary".to_string());
-
-            let mut message = match mime_type.as_slice() {
-                // Only consider a multipart message if we have a boundary, otherwise don't
-                // bother and just assume it's a single message.
-                "multipart" if boundary.is_some() => {
-                    let boundary = boundary.unwrap();
-                    // Pull apart the message on the boundary.
-                    let mut parts = MimeMessage::split_boundary(&body, boundary);
-                    // Pop off the first message, as it's part of the parent.
-                    let pre_body = if parts.is_empty() { "".to_string() } else { parts.remove(0) };
-                    // Parse out each of the child parts, recursively downwards.
-                    // Filtering out and unwrapping None as we go.
-                    let message_parts: Vec<MimeMessage> = parts.iter()
-                                                               .map(|part| { MimeMessage::parse(part.as_slice()) })
-                                                               .filter(|part| { part.is_some() })
-                                                               .map(|part| { part.unwrap() })
-                                                               .collect();
-                    // It should be safe to unwrap the multipart type here because we know the main
-                    // mimetype is "multipart"
-                    let multipart_type = MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
-
-                    MimeMessage::new_with_boundary(pre_body, multipart_type, message_parts, boundary.clone())
-                },
-                _ => MimeMessage::new(body),
-            };
-
-            message.headers = headers;
-
-            Some(message)
-        }
+        message.headers = headers;
+        Ok(message)
     }
 
 
     // Split `body` up on the `boundary` string.
     fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
-        #[derive(Show)]
+        #[derive(Debug)]
         enum ParseState {
             Normal,
             SeenCr,
@@ -318,9 +307,9 @@ impl MimeMessage {
         let mut state = ParseState::SeenLf;
 
         // Initialize starting positions
-        let mut pos = 0us;
-        let mut boundary_start = 0us;
-        let mut boundary_end = 0us;
+        let mut pos = 0;
+        let mut boundary_start = 0;
+        let mut boundary_end = 0;
 
         let mut parts = Vec::new();
 
@@ -384,12 +373,11 @@ impl MimeMessage {
 #[cfg(test)]
 mod tests {
     extern crate test;
-
     use super::*;
     use super::super::header::{Header,HeaderMap};
     use self::test::Bencher;
 
-    #[derive(Show)]
+    #[derive(Debug)]
     struct MessageTestResult<'s> {
         headers: Vec<(&'s str, &'s str)>,
         body: &'s str,
@@ -544,8 +532,8 @@ mod tests {
             println!("--- Next test: {}", test.name);
             let message = MimeMessage::parse(test.input);
             let result = match (test.output, message) {
-                (Some(ref expected), Some(ref given)) => expected.matches(given),
-                (None, None) => true,
+                (Some(ref expected), Ok(ref given)) => expected.matches(given),
+                (None, Err(_)) => true,
                 (_, _) => false,
             };
             assert!(result, test.name);
@@ -587,7 +575,7 @@ mod tests {
             let mut message = MimeMessage::new(test.body.to_string());
             message.headers = headers;
             let expected = test.result.map(|s| { s.to_string() });
-            assert_eq!(message.decoded_body_string(), expected);
+            assert_eq!(message.decoded_body_string().ok(), expected);
         }
     }
 
@@ -597,7 +585,7 @@ mod tests {
             fn $name(b: &mut Bencher) {
                 let s = $test;
                 b.iter(|| {
-                    MimeMessage::parse(s);
+                    let _ = MimeMessage::parse(s);
                 });
             }
         );

@@ -8,12 +8,12 @@ use std::rc::Rc;
 use chrono::{
     DateTime,
     FixedOffset,
-    Offset,
     UTC,
 };
 
 use super::rfc2047::decode_rfc2047;
 use super::rfc822::Rfc822DateParser;
+use super::results::{ParsingResult,ParsingError};
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
@@ -22,7 +22,7 @@ pub trait FromHeader {
     /// Parse the `value` of the header.
     ///
     /// Returns None if the value failed to be parsed
-    fn from_header(value: String) -> Option<Self>;
+    fn from_header(value: String) -> ParsingResult<Self>;
 }
 
 /// Trait for converting from a Rust type into a Header value.
@@ -32,7 +32,7 @@ pub trait ToHeader {
     /// a message header.
     ///
     /// Returns None if the value cannot be stringified.
-    fn to_header(value: Self) -> Option<String>;
+    fn to_header(value: Self) -> ParsingResult<String>;
 }
 
 /// Trait for converting from a Rust time into a Header value
@@ -44,28 +44,28 @@ pub trait ToHeader {
 /// in to a line.
 #[unstable]
 pub trait ToFoldedHeader {
-    fn to_folded_header(start_pos: usize, value: Self) -> Option<String>;
+    fn to_folded_header(start_pos: usize, value: Self) -> ParsingResult<String>;
 }
 
 impl<T: ToHeader> ToFoldedHeader for T {
-    fn to_folded_header(_: usize, value: T) -> Option<String> {
+    fn to_folded_header(_: usize, value: T) -> ParsingResult<String> {
         // We ignore the start_position because the thing will fold anyway.
         ToHeader::to_header(value)
     }
 }
 
 impl FromHeader for String {
-    fn from_header(value: String) -> Option<String> {
-        #[derive(Show,Copy)]
+    fn from_header(value: String) -> ParsingResult<String> {
+        #[derive(Debug,Copy)]
         enum ParseState {
             Normal(usize),
             SeenEquals(usize),
             SeenQuestion(usize, usize),
         }
 
-        let mut state = ParseState::Normal(0us);
+        let mut state = ParseState::Normal(0);
         let mut decoded = String::new();
-        let mut pos = 0us;
+        let mut pos = 0;
 
         let value_slice = value.as_slice();
 
@@ -126,33 +126,33 @@ impl FromHeader for String {
         decoded.push_str(&value_slice[last_start..]);
 
 
-        Some(decoded)
+        Ok(decoded)
     }
 }
 
 impl FromHeader for DateTime<FixedOffset> {
-    fn from_header(value: String) -> Option<DateTime<FixedOffset>> {
+    fn from_header(value: String) -> ParsingResult<DateTime<FixedOffset>> {
         let mut parser = Rfc822DateParser::new(value.as_slice());
         parser.consume_datetime()
     }
 }
 
 impl FromHeader for DateTime<UTC> {
-    fn from_header(value: String) -> Option<DateTime<UTC>> {
-        let dt: Option<DateTime<FixedOffset>> = FromHeader::from_header(value);
-        dt.map(|i| i.with_offset(UTC))
+    fn from_header(value: String) -> ParsingResult<DateTime<UTC>> {
+        let dt: ParsingResult<DateTime<FixedOffset>> = FromHeader::from_header(value);
+        dt.map(|i| i.with_timezone(&UTC))
     }
 }
 
 impl ToHeader for String {
-    fn to_header(value: String) -> Option<String> {
-        Some(value)
+    fn to_header(value: String) -> ParsingResult<String> {
+        Ok(value)
     }
 }
 
 impl<'a> ToHeader for &'a str {
-    fn to_header(value: &'a str) -> Option<String> {
-        Some(value.to_string())
+    fn to_header(value: &'a str) -> ParsingResult<String> {
+        Ok(value.to_string())
     }
 }
 
@@ -180,7 +180,7 @@ impl Header {
     ///
     /// Returns None if the value failed to be converted.
     #[unstable]
-    pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> Option<Header> {
+    pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> ParsingResult<Header> {
         let header_len = name.len() + 2;
         ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
     }
@@ -188,12 +188,12 @@ impl Header {
     /// Get the value represented by this header, as parsed
     /// into whichever type `T`
     #[unstable]
-    pub fn get_value<T: FromHeader>(&self) -> Option<T> {
+    pub fn get_value<T: FromHeader>(&self) -> ParsingResult<T> {
         FromHeader::from_header(self.value.clone())
     }
 }
 
-impl fmt::String for Header {
+impl fmt::Display for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}: {}", self.name, self.value)
     }
@@ -287,10 +287,10 @@ impl HeaderMap {
 
     /// Get the last value of the header with `name`, as a decoded type.
     #[unstable]
-    pub fn get_value<T: FromHeader>(&self, name: String) -> Option<T> {
+    pub fn get_value<T: FromHeader>(&self, name: String) -> ParsingResult<T> {
         match self.get(name) {
             Some(ref header) => header.get_value(),
-            None => None,
+            None => Err(ParsingError::new("Couldn't find header value.".to_string())),
         }
     }
 
@@ -321,10 +321,9 @@ mod tests {
     use chrono::{
         DateTime,
         FixedOffset,
-        Offset,
         UTC,
     };
-
+    use chrono::offset::TimeZone;
 
     static SAMPLE_HEADERS: [(&'static str, &'static str); 4] = [
         ("Test", "Value"),
@@ -378,7 +377,7 @@ mod tests {
 
         for test in tests.into_iter() {
             let header = Header::new("Test".to_string(), test.input.to_string());
-            let string_value = header.get_value::<String>();
+            let string_value = header.get_value::<String>().ok();
             assert_eq!(string_value, test.result.map(|s| { s.to_string() }));
         }
     }
@@ -386,15 +385,15 @@ mod tests {
     #[test]
     fn test_datetime_get_value() {
         let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
-        let dt_value = header.get_value::<DateTime<FixedOffset>>();
-        assert_eq!(dt_value, Some(FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7)));
+        let dt_value = header.get_value::<DateTime<FixedOffset>>().unwrap();
+        assert_eq!(dt_value, FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7));
     }
 
     #[test]
     fn test_datetime_utc_get_value() {
         let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
-        let dt_value = header.get_value::<DateTime<UTC>>();
-        assert_eq!(dt_value, Some(UTC.ymd(2014, 12, 17).and_hms(8, 35, 7)));
+        let dt_value = header.get_value::<DateTime<UTC>>().unwrap();
+        assert_eq!(dt_value, UTC.ymd(2014, 12, 17).and_hms(8, 35, 7));
     }
 
     #[test]
@@ -428,7 +427,7 @@ mod tests {
             expected_headers.insert(header);
         }
 
-        let mut count = 0us;
+        let mut count = 0;
         // Ensure all the headers returned are expected
         for header in headers.iter() {
             assert!(expected_headers.contains(header));
