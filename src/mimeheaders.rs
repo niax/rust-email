@@ -99,7 +99,6 @@ impl FromHeader for MimeContentTransferEncoding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::results::ParsingResult;
     use super::super::header::Header;
 
     use std::collections::HashMap;

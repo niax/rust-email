@@ -63,9 +63,9 @@ impl FromHeader for String {
             SeenQuestion(usize, usize),
         }
 
-        let mut state = ParseState::Normal(0us);
+        let mut state = ParseState::Normal(0);
         let mut decoded = String::new();
-        let mut pos = 0us;
+        let mut pos = 0;
 
         let value_slice = value.as_slice();
 
@@ -140,7 +140,7 @@ impl FromHeader for DateTime<FixedOffset> {
 impl FromHeader for DateTime<UTC> {
     fn from_header(value: String) -> ParsingResult<DateTime<UTC>> {
         let dt: ParsingResult<DateTime<FixedOffset>> = FromHeader::from_header(value);
-        dt.map(|i| i.with_offset(UTC))
+        dt.map(|i| i.with_timezone(&UTC))
     }
 }
 
@@ -321,10 +321,9 @@ mod tests {
     use chrono::{
         DateTime,
         FixedOffset,
-        Offset,
         UTC,
     };
-
+    use chrono::offset::TimeZone;
 
     static SAMPLE_HEADERS: [(&'static str, &'static str); 4] = [
         ("Test", "Value"),
@@ -428,7 +427,7 @@ mod tests {
             expected_headers.insert(header);
         }
 
-        let mut count = 0us;
+        let mut count = 0;
         // Ensure all the headers returned are expected
         for header in headers.iter() {
             assert!(expected_headers.contains(header));

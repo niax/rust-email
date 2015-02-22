@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use chrono::{
     DateTime,
     FixedOffset,
-    Offset,
 };
+use chrono::offset::TimeZone;
 
 use super::rfc5322::Rfc5322Parser;
 use super::results::{ParsingError, ParsingResult};
@@ -142,7 +142,7 @@ impl<'s> Rfc822DateParser<'s> {
     /// fn main() {
     ///     let mut p = Rfc822DateParser::new("Thu, 18 Dec 2014 21:07:22 +0100");
     ///     let d = p.consume_datetime().unwrap();
-    ///     let as_utc = d.with_offset(UTC);
+    ///     let as_utc = d.with_timezone(&UTC);
     ///
     ///     assert_eq!(d, as_utc);
     /// }
@@ -223,8 +223,8 @@ mod tests {
     use chrono::{
         DateTime,
         FixedOffset,
-        Offset,
     };
+    use chrono::offset::TimeZone;
 
     #[test]
     fn test_time_parse() {

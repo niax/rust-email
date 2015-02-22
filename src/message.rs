@@ -233,7 +233,7 @@ impl MimeMessage {
         }.unwrap_or("us-ascii".to_string());
 
         match encoding_from_whatwg_label(charset.as_slice()) {
-            Some(decoder) => match decoder.decode(&bytes[], DecoderTrap::Replace) {
+            Some(decoder) => match decoder.decode(&bytes, DecoderTrap::Replace) {
                 Ok(x) => Ok(x),
                 Err(e) => Err(ParsingError::new(format!("Unable to decode body: {}", e)))
             },
@@ -307,9 +307,9 @@ impl MimeMessage {
         let mut state = ParseState::SeenLf;
 
         // Initialize starting positions
-        let mut pos = 0us;
-        let mut boundary_start = 0us;
-        let mut boundary_end = 0us;
+        let mut pos = 0;
+        let mut boundary_start = 0;
+        let mut boundary_end = 0;
 
         let mut parts = Vec::new();
 
@@ -373,7 +373,6 @@ impl MimeMessage {
 #[cfg(test)]
 mod tests {
     extern crate test;
-
     use super::*;
     use super::super::header::{Header,HeaderMap};
     use self::test::Bencher;
@@ -586,7 +585,7 @@ mod tests {
             fn $name(b: &mut Bencher) {
                 let s = $test;
                 b.iter(|| {
-                    MimeMessage::parse(s);
+                    let _ = MimeMessage::parse(s);
                 });
             }
         );

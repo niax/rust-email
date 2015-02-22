@@ -33,7 +33,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         match (bytes, decoder) {
             (Ok(b), Some(d)) => {
-                d.decode(&b[], DecoderTrap::Replace).ok()
+                d.decode(&b, DecoderTrap::Replace).ok()
             }
             _ => None,
         }
@@ -44,7 +44,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
 
-    let mut pos = 0us;
+    let mut pos = 0;
 
     while pos < s.len() {
         let c = s.char_range_at(pos);
