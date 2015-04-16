@@ -17,7 +17,6 @@ use super::results::{ParsingResult,ParsingError};
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
-#[stable]
 pub trait FromHeader {
     /// Parse the `value` of the header.
     ///
@@ -26,7 +25,6 @@ pub trait FromHeader {
 }
 
 /// Trait for converting from a Rust type into a Header value.
-#[stable]
 pub trait ToHeader {
     /// Turn the `value` into a String suitable for being used in
     /// a message header.
@@ -42,7 +40,7 @@ pub trait ToHeader {
 /// not be folded later, rather that the type returns a value that
 /// should not be folded, given that the header value starts so far
 /// in to a line.
-#[unstable]
+/// [unstable]
 pub trait ToFoldedHeader {
     fn to_folded_header(start_pos: usize, value: Self) -> ParsingResult<String>;
 }
@@ -56,7 +54,7 @@ impl<T: ToHeader> ToFoldedHeader for T {
 
 impl FromHeader for String {
     fn from_header(value: String) -> ParsingResult<String> {
-        #[derive(Debug,Copy)]
+        #[derive(Debug,Clone,Copy)]
         enum ParseState {
             Normal(usize),
             SeenEquals(usize),
@@ -65,26 +63,23 @@ impl FromHeader for String {
 
         let mut state = ParseState::Normal(0);
         let mut decoded = String::new();
-        let mut pos = 0;
 
-        let value_slice = value.as_slice();
+        let value_slice = &value[..];
 
-        while pos < value.len() {
-            let ch_range = value_slice.char_range_at(pos);
-            let c = ch_range.ch;
-
+        for (pos, c) in value.char_indices() {
             state = match (state, c) {
                 (ParseState::SeenQuestion(start_pos, 4), '=') => {
+                    let next_pos = pos + c.len_utf8();
                     // Go to decode if we've seen enough ?
-                    let part_decoded = decode_rfc2047(&value_slice[start_pos..ch_range.next]);
+                    let part_decoded = decode_rfc2047(&value_slice[start_pos..next_pos]);
                     let to_push = match part_decoded {
-                        Some(ref s) => s.as_slice(),
+                        Some(ref s) => &s[..],
                         // Decoding failed, push the undecoded string in.
                         None => &value_slice[start_pos..pos],
                     };
                     decoded.push_str(to_push);
                     // Revert us to normal state, but starting at the next character.
-                    ParseState::Normal(ch_range.next)
+                    ParseState::Normal(next_pos)
                 },
                 (ParseState::SeenQuestion(start_pos, count), '?') => {
                     ParseState::SeenQuestion(start_pos, count + 1)
@@ -113,8 +108,6 @@ impl FromHeader for String {
                 },
                 (ParseState::Normal(_), _) => state,
             };
-
-            pos = ch_range.next;
         }
 
         // Don't forget to push on whatever we have left
@@ -132,7 +125,7 @@ impl FromHeader for String {
 
 impl FromHeader for DateTime<FixedOffset> {
     fn from_header(value: String) -> ParsingResult<DateTime<FixedOffset>> {
-        let mut parser = Rfc822DateParser::new(value.as_slice());
+        let mut parser = Rfc822DateParser::new(&value[..]);
         parser.consume_datetime()
     }
 }
@@ -157,8 +150,8 @@ impl<'a> ToHeader for &'a str {
 }
 
 /// Represents an RFC 822 Header
+/// [unstable]
 #[derive(PartialEq, Eq, Clone, Hash)]
-#[unstable]
 pub struct Header {
     /// The name of this header
     pub name: String,
@@ -167,7 +160,7 @@ pub struct Header {
 
 impl Header {
     /// Creates a new Header for the given `name` and `value`
-    #[unstable]
+    /// [unstable]
     pub fn new(name: String, value: String) -> Header {
         Header {
             name: name,
@@ -179,7 +172,7 @@ impl Header {
     /// as converted through the `ToHeader` or `ToFoldedHeader` trait.
     ///
     /// Returns None if the value failed to be converted.
-    #[unstable]
+    /// [unstable]
     pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> ParsingResult<Header> {
         let header_len = name.len() + 2;
         ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
@@ -187,7 +180,7 @@ impl Header {
 
     /// Get the value represented by this header, as parsed
     /// into whichever type `T`
-    #[unstable]
+    /// [unstable]
     pub fn get_value<T: FromHeader>(&self) -> ParsingResult<T> {
         FromHeader::from_header(self.value.clone())
     }
@@ -199,13 +192,13 @@ impl fmt::Display for Header {
     }
 }
 
-#[unstable]
+/// [unstable]
 pub struct HeaderIter<'s> {
     iter: SliceIter<'s, Rc<Header>>
 }
 
 impl<'s> HeaderIter<'s> {
-    #[unstable]
+    /// [unstable]
     fn new(iter: SliceIter<'s, Rc<Header>>) -> HeaderIter<'s> {
         HeaderIter {
             iter: iter
@@ -225,8 +218,8 @@ impl<'s> Iterator for HeaderIter<'s> {
 }
 
 /// A collection of Headers
+/// [unstable]
 #[derive(Eq,PartialEq)]
-#[unstable]
 pub struct HeaderMap {
     // We store headers "twice" inside the HeaderMap.
     //
@@ -241,7 +234,7 @@ pub struct HeaderMap {
 }
 
 impl HeaderMap {
-    #[unstable]
+    /// [unstable]
     pub fn new() -> HeaderMap {
         HeaderMap {
             ordered_headers: Vec::new(),
@@ -250,7 +243,7 @@ impl HeaderMap {
     }
 
     /// Adds a header to the collection
-    #[unstable]
+    /// [unstable]
     pub fn insert(&mut self, header: Header) {
         let header_name = header.name.clone();
         let rc = Rc::new(header);
@@ -273,20 +266,20 @@ impl HeaderMap {
     }
 
     /// Get an Iterator over the collection of headers.
-    #[unstable]
+    /// [unstable]
     pub fn iter(&self) -> HeaderIter {
         HeaderIter::new(self.ordered_headers.iter())
     }
 
     /// Get the last value of the header with `name`
-    #[unstable]
+    /// [unstable]
     pub fn get(&self, name: String) -> Option<&Header> {
         self.headers.get(&name).map(|headers| { headers.last().unwrap() })
                                .map(|rc| { rc.deref() })
     }
 
     /// Get the last value of the header with `name`, as a decoded type.
-    #[unstable]
+    /// [unstable]
     pub fn get_value<T: FromHeader>(&self, name: String) -> ParsingResult<T> {
         match self.get(name) {
             Some(ref header) => header.get_value(),
@@ -294,13 +287,13 @@ impl HeaderMap {
         }
     }
 
-    #[unstable]
+    /// [unstable]
     /// Get the number of headers within this map.
     pub fn len(&self) -> usize {
         self.ordered_headers.len()
     }
 
-    #[unstable]
+    /// [unstable]
     /// Find a list of headers of `name`, `None` if there
     /// are no headers with that name.
     pub fn find(&self, name: &String) -> Option<Vec<&Header>> {

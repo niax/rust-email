@@ -14,7 +14,7 @@ impl fmt::Display for ParsingError {
 
 impl Error for ParsingError {
     fn description(&self) -> &str {
-        self.desc.as_slice()
+        &self.desc[..]
     }
 
     fn cause(&self) -> Option<&Error> {
