@@ -337,7 +337,7 @@ impl<'s> Rfc5322Parser<'s> {
             // TODO: Consider making this return an Option<char>
             panic!("Consuming beyond end of input");
         }
-        let c = self.s.char_at(self.pos);
+        let c = self.peek();
         self.pos += c.len_utf8();
         c
     }
@@ -396,7 +396,7 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     /// [unstable]
     pub fn peek(&self) -> char {
-        self.s.char_at(self.pos)
+        self.s[self.pos..].chars().next().unwrap()
     }
 
     /// Check that `!self.eof() && self.peek() == c`
@@ -485,7 +485,7 @@ impl Rfc5322Builder {
 
                // Reset our counters
                cur_len = 0;
-               last_cut = last_space + s.char_at(last_space).len_utf8();
+               last_cut = last_space + s[last_space..].chars().next().unwrap().len_utf8();
                last_space = 0;
            }
        }
