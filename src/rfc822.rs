@@ -156,14 +156,14 @@ impl<'s> Rfc822DateParser<'s> {
             // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
             // API was unstable at the time, so we copy the string here
             let lower_dow = day_of_week.unwrap().to_ascii_lowercase();
-            if DAYS_OF_WEEK.position_elem(&&lower_dow[..]).is_some() {
+            if DAYS_OF_WEEK.contains(&&lower_dow[..]) {
                 // Lose the ","
                 self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });
             } else {
                 // What we read doesn't look like a day, so ignore it,
                 // go back to the start and continue on.
                 self.parser.pop_position();
-            }
+            };
         } else {
             // We don't have a leading day "," so go back to the start.
             self.parser.pop_position();
@@ -173,22 +173,9 @@ impl<'s> Rfc822DateParser<'s> {
             Some(x) => x,
             None => return Err(ParsingError::new("Expected day of month, a number.".to_string()))
         };
-        self.parser.consume_linear_whitespace();
 
-        let month = match self.parser.consume_word(false) {
-            // FIXME: Move into consume_month?
-            Some(s) => {
-                // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
-                // API was unstable at the time, so we copy the string here
-                let lower_month = s.to_ascii_lowercase();
-                // Add one because months are 1 indexed, array is 0 indexed.
-                match MONTHS.position_elem(&&lower_month[..]).map(|i| { (i + 1) as u32 }) {
-                    Some(x) => x,
-                    None => return Err(ParsingError::new(format!("Invalid month: {}", lower_month)))
-                }
-            },
-            None => return Err(ParsingError::new("Expected month.".to_string()))
-        };
+        self.parser.consume_linear_whitespace();
+        let month = try!(self.consume_month());
         self.parser.consume_linear_whitespace();
 
         let year = match self.consume_u32() {
@@ -218,6 +205,24 @@ impl<'s> Rfc822DateParser<'s> {
         ).and_hms(
             hour, minute, second
         ))
+    }
+
+    fn consume_month(&mut self) -> ParsingResult<u32> {
+        match self.parser.consume_word(false) {
+            Some(s) => {
+                // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
+                // API was unstable at the time, so we copy the string here
+                let lower_month = s.to_ascii_lowercase();
+                // Add one because months are 1 indexed, array is 0 indexed.
+                for (i, month) in MONTHS.iter().enumerate() {
+                    if month == &&lower_month[..] {
+                        return Ok((i + 1) as u32);
+                    };
+                };
+                return Err(ParsingError::new(format!("Invalid month: {}", lower_month)));
+            },
+            None => return Err(ParsingError::new("Expected month.".to_string()))
+        };
     }
 }
 
