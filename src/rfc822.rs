@@ -44,13 +44,13 @@ lazy_static!{
 ///
 /// Note that this also supports the additions as specified in
 /// RFC5322 Section 3.3 while still being backward compatible.
-#[unstable]
+/// [unstable]
 pub struct Rfc822DateParser<'s> {
     parser: Rfc5322Parser<'s>,
 }
 
 impl<'s> Rfc822DateParser<'s> {
-    #[unstable]
+    /// [unstable]
     pub fn new(s: &'s str) -> Rfc822DateParser<'s> {
         Rfc822DateParser {
             parser: Rfc5322Parser::new(s),
@@ -100,7 +100,7 @@ impl<'s> Rfc822DateParser<'s> {
             Some(s) => {
                 // from_str doesn't like leading '+' to indicate positive,
                 // so strip it off if it's there.
-                let mut s_slice = s.as_slice();
+                let mut s_slice = &s[..];
                 s_slice = if s_slice.starts_with("+") {
                     &s_slice[1..]
                 } else {
@@ -147,14 +147,14 @@ impl<'s> Rfc822DateParser<'s> {
     ///     assert_eq!(d, as_utc);
     /// }
     /// ```
-    #[unstable]
+    /// [unstable]
     pub fn consume_datetime(&mut self) -> ParsingResult<DateTime<FixedOffset>> {
         // Handle the optional day ","
         self.parser.push_position();
         let day_of_week = self.parser.consume_word(false);
         if day_of_week.is_some() {
             let lower_dow = day_of_week.unwrap().into_ascii_lowercase();
-            if DAYS_OF_WEEK.position_elem(&lower_dow.as_slice()).is_some() {
+            if DAYS_OF_WEEK.position_elem(&&lower_dow[..]).is_some() {
                 // Lose the ","
                 self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });
             } else {
@@ -178,7 +178,7 @@ impl<'s> Rfc822DateParser<'s> {
             Some(s) => {
                 let lower_month = s.into_ascii_lowercase();
                 // Add one because months are 1 indexed, array is 0 indexed.
-                match MONTHS.position_elem(&lower_month.as_slice()).map(|i| { (i + 1) as u32 }) {
+                match MONTHS.position_elem(&&lower_month[..]).map(|i| { (i + 1) as u32 }) {
                     Some(x) => x,
                     None => return Err(ParsingError::new(format!("Invalid month: {}", lower_month)))
                 }

@@ -1,5 +1,3 @@
-#![feature(core,fs,io,path,env)]
-
 extern crate email;
 
 use email::MimeMessage;
@@ -24,7 +22,7 @@ fn main() {
     println!("INPUT:");
     println!("{}", &raw_msg);
 
-    let msg = MimeMessage::parse(raw_msg.as_slice()).unwrap();
+    let msg = MimeMessage::parse(&raw_msg[..]).unwrap();
 
     println!("PARSED:");
     println!("{}", msg.as_string());

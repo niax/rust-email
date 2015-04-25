@@ -1,6 +1,6 @@
-#![feature(collections,core,std_misc)]
+#![feature(test,collections,std_misc,str_char)]
 
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
 extern crate encoding;
 extern crate time;
 extern crate chrono;

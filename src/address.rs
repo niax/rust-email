@@ -8,7 +8,6 @@ use super::results::{ParsingResult,ParsingError};
 
 /// Represents an RFC 5322 Address
 #[derive(PartialEq, Eq, Debug)]
-#[stable]
 pub enum Address {
     /// A "regular" email address
     Mailbox(Mailbox),
@@ -18,19 +17,19 @@ pub enum Address {
 
 impl Address {
     /// Shortcut function to make a new Mailbox with the given address
-    #[unstable]
+    /// [unstable]
     pub fn new_mailbox(address: String) -> Address {
         Address::Mailbox(Mailbox::new(address))
     }
 
     /// Shortcut function to make a new Mailbox with the address and given-name
-    #[unstable]
+    /// [unstable]
     pub fn new_mailbox_with_name(name: String, address: String) -> Address {
         Address::Mailbox(Mailbox::new_with_name(name, address))
     }
 
     /// Shortcut function to make a new Group with a collection of mailboxes
-    #[unstable]
+    /// [unstable]
     pub fn new_group(name: String, mailboxes: Vec<Mailbox>) -> Address {
         Address::Group(name, mailboxes)
     }
@@ -47,7 +46,7 @@ impl fmt::Display for Address {
                         // Insert the separator if there's already things in this list
                         mailbox_list.push_str(", ");
                     }
-                    mailbox_list.push_str(mbox.to_string().as_slice());
+                    mailbox_list.push_str(&mbox.to_string()[..]);
                 }
                 write!(fmt, "{}: {};", name, mailbox_list)
             }
@@ -57,7 +56,6 @@ impl fmt::Display for Address {
 
 /// Represents an RFC 5322 mailbox
 #[derive(PartialEq, Eq, Debug)]
-#[stable]
 pub struct Mailbox {
     /// The given name for this address
     pub name: Option<String>,
@@ -67,7 +65,6 @@ pub struct Mailbox {
 
 impl Mailbox {
     /// Create a new Mailbox without a display name
-    #[stable]
     pub fn new(address: String) -> Mailbox {
         Mailbox {
             name: None,
@@ -76,7 +73,6 @@ impl Mailbox {
     }
 
     /// Create a new Mailbox with a display name
-    #[stable]
     pub fn new_with_name(name: String, address: String) -> Mailbox {
         Mailbox {
             name: Some(name),
@@ -104,7 +100,7 @@ impl FromStr for Mailbox {
 
 impl FromHeader for Vec<Address> {
     fn from_header(value: String) -> ParsingResult<Vec<Address>> {
-        AddressParser::new(value.as_slice()).parse_address_list()
+        AddressParser::new(&value[..]).parse_address_list()
     }
 }
 
@@ -123,7 +119,7 @@ impl ToFoldedHeader for Vec<Address> {
                 line_len = 0;
             }
             line_len += addr_str.len();
-            header.push_str(addr_str.as_slice());
+            header.push_str(&addr_str[..]);
         }
 
         // Clear up the final ", "
@@ -134,20 +130,17 @@ impl ToFoldedHeader for Vec<Address> {
     }
 }
 
-#[stable]
 pub struct AddressParser<'s> {
     p: Rfc5322Parser<'s>,
 }
 
 impl<'s> AddressParser<'s> {
-    #[stable]
     pub fn new(s: &str) -> AddressParser {
         AddressParser {
             p: Rfc5322Parser::new(s)
         }
     }
 
-    #[stable]
     pub fn parse_address_list(&mut self) -> ParsingResult<Vec<Address>> {
         let mut result = Vec::new();
         let mut expected_separator: char;
@@ -185,7 +178,6 @@ impl<'s> AddressParser<'s> {
         Ok(result)
     }
 
-    #[stable]
     pub fn parse_group(&mut self) -> ParsingResult<Address> {
         let name = match self.p.consume_phrase(false) {
             Some(x) => x,
@@ -208,7 +200,6 @@ impl<'s> AddressParser<'s> {
         Ok(Address::Group(name, mailboxes))
     }
 
-    #[stable]
     pub fn parse_mailbox(&mut self) -> ParsingResult<Mailbox> {
         // Push the current position of the parser so we can back out later
         self.p.push_position();
@@ -385,7 +376,7 @@ mod tests {
         ];
 
         let header = Header::new_with_value("To".to_string(), addresses).unwrap();
-        assert_eq!(header.to_string().as_slice(),
+        assert_eq!(&header.to_string()[..],
                    "To: \"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>, \r\n\
                    \t\"Mr Black\" <mafia_black@example.org>");
     }

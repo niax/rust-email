@@ -6,15 +6,12 @@ use std::collections::HashMap;
 /// Parser over RFC 2045 style headers.
 ///
 /// Things of the style `value; param1=foo; param2="bar"`
-#[stable]
 pub struct Rfc2045Parser<'s> {
     parser: Rfc5322Parser<'s>,
 }
 
-#[stable]
 impl<'s> Rfc2045Parser<'s> {
     /// Create a new parser over `s`
-    #[stable]
     pub fn new(s: &str) -> Rfc2045Parser {
         Rfc2045Parser {
             parser: Rfc5322Parser::new(s)
@@ -41,7 +38,6 @@ impl<'s> Rfc2045Parser<'s> {
 
     /// Consume up to all of the input into the value and a hashmap
     /// over parameters to values.
-    #[stable]
     pub fn consume_all(&mut self) -> (String, HashMap<String, String>) {
         let value = self.parser.consume_while(|c| { c != ';' });
  

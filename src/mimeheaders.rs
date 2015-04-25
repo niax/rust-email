@@ -12,11 +12,9 @@ use rustc_serialize::base64::FromBase64;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.
-#[stable]
 pub type MimeContentType = (String, String);
 
 /// Special header type for the Content-Type header.
-#[stable]
 pub struct MimeContentTypeHeader {
     /// The content type presented by this header
     pub content_type: MimeContentType,
@@ -26,10 +24,10 @@ pub struct MimeContentTypeHeader {
 
 impl FromHeader for MimeContentTypeHeader {
     fn from_header(value: String) -> ParsingResult<MimeContentTypeHeader> {
-        let mut parser = Rfc2045Parser::new(value.as_slice());
+        let mut parser = Rfc2045Parser::new(&value[..]);
         let (value, params) = parser.consume_all();
 
-        let mime_parts: Vec<&str> = value.as_slice().splitn(2, '/').collect();
+        let mime_parts: Vec<&str> = value[..].splitn(2, '/').collect();
 
         if mime_parts.len() == 2 {
             Ok(MimeContentTypeHeader {
@@ -54,8 +52,7 @@ impl ToHeader for MimeContentTypeHeader {
 }
 
 /// Special header type for the Content-Transfer-Encoding header.
-#[derive(Debug,PartialEq,Eq,Copy)]
-#[stable]
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
     Identity,
@@ -74,12 +71,12 @@ impl MimeContentTransferEncoding {
     ///
     /// Note that this will return a clone of the input's bytes if the
     /// transfer encoding is the Identity encoding.
-    #[unstable]
+    /// [unstable]
     pub fn decode(&self, input: &String) -> Option<Vec<u8>> {
         match *self {
             MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
-            MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(input.as_slice()).ok(),
-            MimeContentTransferEncoding::Base64 => input.as_slice().from_base64().ok(),
+            MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(&input[..]).ok(),
+            MimeContentTransferEncoding::Base64 => input[..].from_base64().ok(),
         }
     }
 }
@@ -87,7 +84,7 @@ impl MimeContentTransferEncoding {
 impl FromHeader for MimeContentTransferEncoding {
     fn from_header(value: String) -> ParsingResult<MimeContentTransferEncoding> {
         let lower = value.into_ascii_lowercase();
-        match lower.as_slice() {
+        match &lower[..] {
             "7bit" | "8bit" | "binary" => Ok(MimeContentTransferEncoding::Identity),
             "quoted-printable" => Ok(MimeContentTransferEncoding::QuotedPrintable),
             "base64" => Ok(MimeContentTransferEncoding::Base64),

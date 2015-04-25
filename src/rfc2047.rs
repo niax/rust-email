@@ -1,7 +1,6 @@
 //! Module for decoding RFC 2047 strings
 // use for to_ascii_lowercase
 use std::ascii::AsciiExt;
-use std::num::from_str_radix;
 use rustc_serialize::base64::FromBase64;
 
 use encoding::label::encoding_from_whatwg_label;
@@ -11,7 +10,7 @@ use encoding::DecoderTrap;
 ///
 /// Will accept either "Q" encoding (RFC 2047 Section 4.2) or
 /// "B" encoding (BASE64)
-#[unstable]
+/// [unstable]
 pub fn decode_rfc2047(s: &str) -> Option<String> {
     let parts: Vec<&str> = s.split('?').collect();
     if parts.len() != 5 || parts[0] != "=" || parts[4] != "=" {
@@ -21,7 +20,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
         let encoding = parts[2].to_ascii_lowercase();
         let content = parts[3];
 
-        let bytes = match encoding.as_slice() {
+        let bytes = match &encoding[..] {
             "q" => decode_q_encoding(content),
             "b" => decode_base64_encoding(content),
             _ => panic!("Unknown encoding type"),
@@ -29,7 +28,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         // XXX: Relies on WHATWG labels, rather than MIME labels for
         // charset. Consider adding mapping upstream.
-        let decoder = encoding_from_whatwg_label(charset.as_slice());
+        let decoder = encoding_from_whatwg_label(&charset[..]);
 
         match (bytes, decoder) {
             (Ok(b), Some(d)) => {
@@ -40,38 +39,34 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
     }
 }
 
-#[stable]
 pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
+    let mut char_iter = s.chars();
 
-    let mut pos = 0;
-
-    while pos < s.len() {
-        let c = s.char_range_at(pos);
-        pos = match c.ch {
-            '=' => {
-                let mut inner_pos = c.next;
+    loop {
+        match char_iter.next() {
+            Some('=') => {
                 let mut hex_string = String::new();
                 for _ in 0..2 {
-                    let hex_digit_char = s.char_range_at(inner_pos);
-                    hex_string.push(hex_digit_char.ch);
-                    inner_pos = hex_digit_char.next;
-                }
+                    let hex_digit_char = char_iter.next().unwrap();  // FIXME
+                    hex_string.push(hex_digit_char);
+                };
+
                 // = followed by a newline means a continuation
-                if hex_string.as_slice() != "\r\n" {
-                    match from_str_radix(hex_string.as_slice(), 16) {
+                let hex_string_slice = &hex_string[..];
+                if hex_string_slice != "\r\n" {
+                    match u8::from_str_radix(hex_string_slice, 16) {
                         Ok(char_val) => { result.push(char_val) },
                         Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
                     }
                 }
-                inner_pos
-            }
-            _ => {
-                result.push(c.ch as u8);
-                c.next
-            }
-        }
-    }
+            },
+            Some(c) => {
+                result.push(c as u8);
+            },
+            None => break,
+        };
+    };
 
     Ok(result)
 }
