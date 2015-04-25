@@ -1,4 +1,4 @@
-#![feature(test,collections,std_misc,str_char)]
+#![feature(test,collections,str_char)]
 
 extern crate rustc_serialize;
 extern crate encoding;

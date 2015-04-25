@@ -6,7 +6,7 @@ use super::rfc2045::Rfc2045Parser;
 use super::rfc2047::decode_q_encoding;
 use super::results::{ParsingResult,ParsingError};
 
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use rustc_serialize::base64::FromBase64;
 
@@ -83,7 +83,9 @@ impl MimeContentTransferEncoding {
 
 impl FromHeader for MimeContentTransferEncoding {
     fn from_header(value: String) -> ParsingResult<MimeContentTransferEncoding> {
-        let lower = value.into_ascii_lowercase();
+        // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
+        // API was unstable at the time, so we copy the string here
+        let lower = value.to_ascii_lowercase();
         match &lower[..] {
             "7bit" | "8bit" | "binary" => Ok(MimeContentTransferEncoding::Identity),
             "quoted-printable" => Ok(MimeContentTransferEncoding::QuotedPrintable),

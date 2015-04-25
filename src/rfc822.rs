@@ -1,4 +1,4 @@
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
 use std::collections::HashMap;
 
 use chrono::{
@@ -153,7 +153,9 @@ impl<'s> Rfc822DateParser<'s> {
         self.parser.push_position();
         let day_of_week = self.parser.consume_word(false);
         if day_of_week.is_some() {
-            let lower_dow = day_of_week.unwrap().into_ascii_lowercase();
+            // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
+            // API was unstable at the time, so we copy the string here
+            let lower_dow = day_of_week.unwrap().to_ascii_lowercase();
             if DAYS_OF_WEEK.position_elem(&&lower_dow[..]).is_some() {
                 // Lose the ","
                 self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });
@@ -176,7 +178,9 @@ impl<'s> Rfc822DateParser<'s> {
         let month = match self.parser.consume_word(false) {
             // FIXME: Move into consume_month?
             Some(s) => {
-                let lower_month = s.into_ascii_lowercase();
+                // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
+                // API was unstable at the time, so we copy the string here
+                let lower_month = s.to_ascii_lowercase();
                 // Add one because months are 1 indexed, array is 0 indexed.
                 match MONTHS.position_elem(&&lower_month[..]).map(|i| { (i + 1) as u32 }) {
                     Some(x) => x,
