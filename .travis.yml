@@ -1,18 +1,11 @@
 language: rust
-rust: nightly
+rust:
+    - nightly
+    - beta
 
 env:
     global:
         - secure: "K6TAj7O5B1JM5kHwZIjZOIb1RezvZluuVFVlE70zcCw6psohdyPcFwthKSQ5DCA//AYrfPJUwA3TO2znM2VNE+7SJNlGC490WwycL6aAtHLo526S6IS00kQnwAQOJ5kIiYI24wbkG+sMJP8l3O3sMpZzCyLwMqv4pFaXHVOehGU="
 
-script:
-    - cargo build -v
-    - cargo test -v
-    - cargo doc -v --no-deps
-
-after_success: |
-    [ "$TRAVIS_BRANCH" = master ] &&
-    [ "$TRAVIS_PULL_REQUEST" = false ] &&
-    sudo pip install ghp-import &&
-    ghp-import -n target/doc &&
-    git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages 2>/dev/null
+script: sh .travis.sh script
+after_success: sh .travis.sh after_success
