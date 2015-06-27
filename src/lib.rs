@@ -17,7 +17,7 @@ pub use header::{
     ToHeader,
     ToFoldedHeader,
 };
-pub use address::{Address};
+pub use address::{Address, Mailbox};
 pub use message::{
     MimeMessage,
     MimeMultipartType,

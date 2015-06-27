@@ -151,7 +151,7 @@ impl<'a> ToHeader for &'a str {
 
 /// Represents an RFC 822 Header
 /// [unstable]
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Header {
     /// The name of this header
     pub name: String,
@@ -219,7 +219,7 @@ impl<'s> Iterator for HeaderIter<'s> {
 
 /// A collection of Headers
 /// [unstable]
-#[derive(Eq,PartialEq)]
+#[derive(Eq,PartialEq,Debug,Clone)]
 pub struct HeaderMap {
     // We store headers "twice" inside the HeaderMap.
     //

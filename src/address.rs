@@ -7,7 +7,7 @@ use super::results::{ParsingResult,ParsingError};
 
 
 /// Represents an RFC 5322 Address
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Address {
     /// A "regular" email address
     Mailbox(Mailbox),
@@ -55,7 +55,7 @@ impl fmt::Display for Address {
 }
 
 /// Represents an RFC 5322 mailbox
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Mailbox {
     /// The given name for this address
     pub name: Option<String>,
