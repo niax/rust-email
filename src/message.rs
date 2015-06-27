@@ -67,6 +67,7 @@ impl MimeMultipartType {
 
 /// Represents a MIME message
 /// [unstable]
+#[derive(Eq,PartialEq,Debug,Clone)]
 pub struct MimeMessage {
     /// The headers for this message
     pub headers: HeaderMap,
