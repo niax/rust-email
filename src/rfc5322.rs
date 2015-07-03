@@ -341,7 +341,6 @@ impl<'s> Rfc5322Parser<'s> {
     /// [unstable]
     pub fn consume_char(&mut self) -> Option<char> {
         if self.eof() {
-            // TODO: Consider making this return an Option<char>
             return None
         }
         let c = self.peek();
@@ -453,7 +452,7 @@ pub struct Rfc5322Builder {
 }
 
 impl Rfc5322Builder {
-    /// Make a new builder, with an empty string
+    /// Make a new parser, with an empty string
     pub fn new() -> Rfc5322Builder {
         Rfc5322Builder {
             result: "".to_string(),
@@ -514,20 +513,20 @@ mod tests {
 
     #[test]
     fn test_parser() {
-        let mut builder = Rfc5322Parser::new("");
-        assert!(builder.consume_message().is_some());
+        let mut parser = Rfc5322Parser::new("");
+        assert!(parser.consume_message().is_some());
 
-        let mut builder = Rfc5322Parser::new("\r\n");
-        assert!(builder.consume_message().is_some());
+        let mut parser = Rfc5322Parser::new("\r\n");
+        assert!(parser.consume_message().is_some());
 
-        let mut builder = Rfc5322Parser::new("From: Garbage@-\r\n");
-        assert!(builder.consume_message().is_some());
+        let mut parser = Rfc5322Parser::new("From: Garbage@-\r\n");
+        assert!(parser.consume_message().is_some());
 
-        let mut builder = Rfc5322Parser::new("From: Garbage@");
-        assert!(builder.consume_message().is_some());
+        let mut parser = Rfc5322Parser::new("From: Garbage@");
+        assert!(parser.consume_message().is_some());
 
-        let mut builder = Rfc5322Parser::new("From: Garnage@-");
-        assert!(builder.consume_message().is_some());
+        let mut parser = Rfc5322Parser::new("From: Garnage@-");
+        assert!(parser.consume_message().is_some());
     }
 
     #[test]
