@@ -31,4 +31,4 @@ pub mod mimeheaders;
 mod header;
 mod address;
 mod message;
-mod results;
+pub mod results;
