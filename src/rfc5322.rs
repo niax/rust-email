@@ -452,7 +452,7 @@ pub struct Rfc5322Builder {
 }
 
 impl Rfc5322Builder {
-    /// Make a new parser, with an empty string
+    /// Make a new builder, with an empty string
     pub fn new() -> Rfc5322Builder {
         Rfc5322Builder {
             result: "".to_string(),
