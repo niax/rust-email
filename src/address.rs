@@ -222,7 +222,7 @@ impl<'s> AddressParser<'s> {
         self.p.consume_char();
 
         let addr = try!(self.parse_addr_spec());
-        if self.p.consume_char() != '>' {
+        if self.p.consume_char() != Some('>') {
             // Fail because we should have a closing RANGLE here (to match the opening one)
             Err(ParsingError::new("Missing '>' at end while parsing address header.".to_string()))
         } else {
