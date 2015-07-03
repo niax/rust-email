@@ -28,7 +28,7 @@ pub mod rfc2047;
 pub mod rfc2045;
 pub mod rfc822;
 pub mod mimeheaders;
+pub mod results;
 mod header;
 mod address;
 mod message;
-pub mod results;
