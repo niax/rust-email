@@ -144,7 +144,8 @@ impl<'s> Rfc5322Parser<'s> {
             self.consume_linear_whitespace();
             let field_value = self.consume_unstructured();
 
-            assert!(self.consume_linebreak());
+            // don't just panic!()
+            if self.consume_linebreak() == false { return None };
 
             Some(Header::new(field_name, field_value))
         }
