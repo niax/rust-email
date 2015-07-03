@@ -60,7 +60,7 @@ pub struct Rfc5322Parser<'s> {
 }
 
 impl<'s> Rfc5322Parser<'s> {
-    /// Make a new parser, initialized with the given string. 
+    /// Make a new parser, initialized with the given string.
     /// [unstable]
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
@@ -144,7 +144,8 @@ impl<'s> Rfc5322Parser<'s> {
             self.consume_linear_whitespace();
             let field_value = self.consume_unstructured();
 
-            assert!(self.consume_linebreak());
+            // don't just panic!()
+            if self.consume_linebreak() == false { return None };
 
             Some(Header::new(field_name, field_value))
         }
@@ -181,7 +182,7 @@ impl<'s> Rfc5322Parser<'s> {
         let current_position = self.pos;
         let is_fws = if !self.eof() && self.consume_linebreak() {
             match self.consume_char() {
-                ' ' | '\t' => true,
+                Some(' ') | Some('\t') => true,
                 _ => false,
             }
         } else {
@@ -292,9 +293,15 @@ impl<'s> Rfc5322Parser<'s> {
                     },
                     _ => {
                         // Any old character gets pushed in
-                        quoted_string.push(self.consume_char());
-                        // Clear any escape character state we have
-                        inside_escape = false;
+                        if let Some(c) = self.consume_char() {
+                            quoted_string.push(c);
+                            // Clear any escape character state we have
+                            inside_escape = false;
+                        }
+                        // TODO: Should this return a Result<> instead of an Option<>?
+                        else {
+                            return None;
+                        }
                     },
                 }
             }
@@ -332,14 +339,13 @@ impl<'s> Rfc5322Parser<'s> {
     /// Consume a single character from the input.
     #[inline]
     /// [unstable]
-    pub fn consume_char(&mut self) -> char {
-        if self.eof() { 
-            // TODO: Consider making this return an Option<char>
-            panic!("Consuming beyond end of input");
+    pub fn consume_char(&mut self) -> Option<char> {
+        if self.eof() {
+            return None
         }
         let c = self.peek();
         self.pos += c.len_utf8();
-        c
+        Some(c)
     }
 
     // Consume a linebreak: \r\n, \r or \n
@@ -352,14 +358,14 @@ impl<'s> Rfc5322Parser<'s> {
         let start_pos = self.pos;
 
         match self.consume_char() {
-            '\r' => {
+            Some('\r') => {
                 // Try to consume a single \n following the \r
                 if !self.eof() && self.peek() == '\n' {
                     self.consume_char();
                 }
                 true
             },
-            '\n' => true,
+            Some('\n') => true,
             _ => { self.pos = start_pos; false }
         }
     }
@@ -503,6 +509,24 @@ mod tests {
         input: &'s str,
         output: &'s str,
         name: &'s str,
+    }
+
+    #[test]
+    fn test_parser() {
+        let mut parser = Rfc5322Parser::new("");
+        assert!(parser.consume_message().is_some());
+
+        let mut parser = Rfc5322Parser::new("\r\n");
+        assert!(parser.consume_message().is_some());
+
+        let mut parser = Rfc5322Parser::new("From: Garbage@-\r\n");
+        assert!(parser.consume_message().is_some());
+
+        let mut parser = Rfc5322Parser::new("From: Garbage@");
+        assert!(parser.consume_message().is_some());
+
+        let mut parser = Rfc5322Parser::new("From: Garnage@-");
+        assert!(parser.consume_message().is_some());
     }
 
     #[test]
