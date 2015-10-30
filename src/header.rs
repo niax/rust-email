@@ -17,7 +17,7 @@ use super::results::{ParsingResult,ParsingError};
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
-pub trait FromHeader {
+pub trait FromHeader: Sized {
     /// Parse the `value` of the header.
     ///
     /// Returns None if the value failed to be parsed
