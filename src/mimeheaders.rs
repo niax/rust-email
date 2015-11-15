@@ -45,7 +45,7 @@ impl ToHeader for MimeContentTypeHeader {
         let (mime_major, mime_minor) = value.content_type;
         let mut result = format!("{}/{}", mime_major, mime_minor);
         for (key, val) in value.params.iter() {
-            result = format!("{} {}={};", result, key, val);
+            result = format!("{}; {}={}", result, key, val);
         }
         Ok(result)
     }
