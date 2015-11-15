@@ -205,6 +205,27 @@ impl MimeMessage {
         builder.result().clone()
     }
 
+    pub fn as_string_without_headers(&self) -> String {
+        let mut builder = Rfc5322Builder::new();
+
+        builder.emit_raw(&format!("{}\r\n", self.body)[..]);
+
+        if self.children.len() > 0 {
+
+            for part in self.children.iter() {
+                builder.emit_raw(
+                    &format!("--{}\r\n{}\r\n",
+                            self.boundary,
+                            part.as_string())[..]
+                );
+            }
+
+            builder.emit_raw(&format!("--{}--\r\n", self.boundary)[..]);
+        }
+
+        builder.result().clone()
+    }
+
     /// Decode the body of this message, as a series of bytes
     pub fn decoded_body_bytes(&self) -> Option<Vec<u8>> {
         let transfer_encoding: MimeContentTransferEncoding =
