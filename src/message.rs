@@ -29,7 +29,7 @@ pub enum MimeMultipartType {
     /// whichever is "best" for its use.
     ///
     /// As defined by Section 5.1.4 of RFC 2046
-    Alternate,
+    Alternative,
     /// Entries are (typically) a collection of messages.
     ///
     /// As defined by Section 5.1.5 of RFC 2046
@@ -45,7 +45,7 @@ impl MimeMultipartType {
     pub fn from_content_type(ct: MimeContentType) -> Option<MimeMultipartType> {
         let (major, minor) = ct;
         match (&major[..], &minor[..]) {
-            ("multipart", "alternate") => Some(MimeMultipartType::Alternate),
+            ("multipart", "alternative") => Some(MimeMultipartType::Alternative),
             ("multipart", "digest") => Some(MimeMultipartType::Digest),
             ("multipart", "parallel") => Some(MimeMultipartType::Parallel),
             ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartType::Mixed),
@@ -58,7 +58,7 @@ impl MimeMultipartType {
         let multipart = "multipart".to_string();
         match *self {
             MimeMultipartType::Mixed => (multipart, "mixed".to_string()),
-            MimeMultipartType::Alternate => (multipart, "alternate".to_string()),
+            MimeMultipartType::Alternative => (multipart, "alternative".to_string()),
             MimeMultipartType::Digest => (multipart, "digest".to_string()),
             MimeMultipartType::Parallel => (multipart, "parallel".to_string()),
         }
@@ -437,7 +437,7 @@ mod tests {
             ParseTest {
                 input: "From: joe@example.org\r\n\
                         To: john@example.org\r\n\
-                        Content-Type: multipart/alternate; boundary=foo\r\n\
+                        Content-Type: multipart/alternative; boundary=foo\r\n\
                         \r\n\
                         Parent\r\n\
                         --foo\r\n\
@@ -448,7 +448,7 @@ mod tests {
                     headers: vec![
                         ("From", "joe@example.org"),
                         ("To", "john@example.org"),
-                        ("Content-Type", "multipart/alternate; boundary=foo"),
+                        ("Content-Type", "multipart/alternative; boundary=foo"),
                     ],
                     body: "Parent\r\n",
                     children: vec![
@@ -474,7 +474,7 @@ mod tests {
                         \r\n\
                         Parent\r\n\
                         --foo\r\n\
-                        Content-Type: multipart/alternate; boundary=bar\r\n\
+                        Content-Type: multipart/alternative; boundary=bar\r\n\
                         \r\n\
                         --bar\r\n\
                         Hello!\r\n\
@@ -493,7 +493,7 @@ mod tests {
                     children: vec![
                         MessageTestResult {
                             headers: vec![
-                                ("Content-Type", "multipart/alternate; boundary=bar"),
+                                ("Content-Type", "multipart/alternative; boundary=bar"),
                             ],
                             body: "",
                             children: vec![
@@ -587,7 +587,7 @@ mod tests {
     bench_parser!(bench_simple_multipart,
         "From: joe@example.org\r\n\
          To: john@example.org\r\n\
-         Content-Type: multipart/alternate; boundary=foo\r\n\
+         Content-Type: multipart/alternative; boundary=foo\r\n\
          \r\n\
          Parent\r\n\
          --foo\r\n\
@@ -603,7 +603,7 @@ mod tests {
          \r\n\
          Parent\r\n\
          --foo\r\n\
-         Content-Type: multipart/alternate; boundary=bar\r\n\
+         Content-Type: multipart/alternative; boundary=bar\r\n\
          \r\n\
          --bar\r\n\
          Hello!\r\n\
@@ -627,8 +627,8 @@ mod tests {
                 result: Some(MimeMultipartType::Mixed),
             },
             MultipartParseTest {
-                mime_type: ("multipart", "alternate"),
-                result: Some(MimeMultipartType::Alternate),
+                mime_type: ("multipart", "alternative"),
+                result: Some(MimeMultipartType::Alternative),
             },
             MultipartParseTest {
                 mime_type: ("multipart", "digest"),
@@ -664,7 +664,7 @@ mod tests {
         let multipart = "multipart".to_string();
 
         assert_eq!(MimeMultipartType::Mixed.to_content_type(),     (multipart.clone(), "mixed".to_string()));
-        assert_eq!(MimeMultipartType::Alternate.to_content_type(), (multipart.clone(), "alternate".to_string()));
+        assert_eq!(MimeMultipartType::Alternative.to_content_type(), (multipart.clone(), "alternative".to_string()));
         assert_eq!(MimeMultipartType::Digest.to_content_type(),    (multipart.clone(), "digest".to_string()));
         assert_eq!(MimeMultipartType::Parallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
     }
