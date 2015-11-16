@@ -186,8 +186,19 @@ impl MimeMessage {
             builder.emit_folded(&header.to_string()[..]);
             builder.emit_raw("\r\n");
         }
+        builder.emit_raw("\r\n");
 
-        builder.emit_raw(&format!("\r\n{}\r\n", self.body)[..]);
+        self.as_string_without_headers_internal(builder)
+    }
+
+    pub fn as_string_without_headers(&self) -> String {
+        let builder = Rfc5322Builder::new();
+
+        self.as_string_without_headers_internal(builder)
+    }
+
+    fn as_string_without_headers_internal(&self, mut builder: Rfc5322Builder) -> String {
+        builder.emit_raw(&format!("{}\r\n", self.body)[..]);
 
         if self.children.len() > 0 {
 
