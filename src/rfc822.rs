@@ -152,10 +152,10 @@ impl<'s> Rfc822DateParser<'s> {
         // Handle the optional day ","
         self.parser.push_position();
         let day_of_week = self.parser.consume_word(false);
-        if day_of_week.is_some() {
+        if let Some(day_of_week) = day_of_week {
             // XXX: Used to be into_ascii_lowercase, which is more memory-efficient. Unfortunately that
             // API was unstable at the time, so we copy the string here
-            let lower_dow = day_of_week.unwrap().to_ascii_lowercase();
+            let lower_dow = day_of_week.to_ascii_lowercase();
             if DAYS_OF_WEEK.contains(&&lower_dow[..]) {
                 // Lose the ","
                 self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });

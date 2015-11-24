@@ -148,13 +148,13 @@ impl MimeMessage {
             self.message_type = Some(MimeMultipartType::Mixed);
         }
 
-        if self.message_type.is_some() {
+        if let Some(message_type) = self.message_type {
             // We are some form of multi-part message, so update our
             // Content-Type header.
             let mut params = HashMap::new();
             params.insert("boundary".to_string(), self.boundary.clone());
             let ct_header = MimeContentTypeHeader {
-                content_type: self.message_type.unwrap().to_content_type(),
+                content_type: message_type.to_content_type(),
                 params: params
             };
             self.headers.insert(Header::new_with_value(
@@ -268,11 +268,10 @@ impl MimeMessage {
         let (mime_type, sub_mime_type) = content_type.content_type;
         let boundary = content_type.params.get(&"boundary".to_string());
 
-        let mut message = match &mime_type[..] {
+        let mut message = match (&mime_type[..], boundary) {
             // Only consider a multipart message if we have a boundary, otherwise don't
             // bother and just assume it's a single message.
-            "multipart" if boundary.is_some() => {
-                let boundary = boundary.unwrap();
+            ("multipart", Some(boundary)) => {
                 // Pull apart the message on the boundary.
                 let mut parts = MimeMessage::split_boundary(&body, boundary);
                 // Pop off the first message, as it's part of the parent.
