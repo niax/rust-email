@@ -99,8 +99,8 @@ impl<'s> Rfc5322Parser<'s> {
         let mut headers = HeaderMap::new();
         while !self.eof() {
             let header = self.consume_header();
-            if header.is_some() {
-                headers.insert(header.unwrap());
+            if let Some(header) = header {
+                headers.insert(header);
             } else {
                 // Check end of headers as marked by CRLF
                 if !self.eof() && self.peek_linebreak() {

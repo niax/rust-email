@@ -297,12 +297,8 @@ impl HeaderMap {
     /// Find a list of headers of `name`, `None` if there
     /// are no headers with that name.
     pub fn find(&self, name: &String) -> Option<Vec<&Header>> {
-        let headers_rcs = self.headers.get(name);
-        if headers_rcs.is_some() {
-            Some(headers_rcs.unwrap().iter().map(|rc| { rc.deref() }).collect())
-        } else {
-            None
-        }
+        self.headers.get(name)
+            .map(|rcs| rcs.iter().map(|rc| rc.deref()).collect())
     }
 }
 
