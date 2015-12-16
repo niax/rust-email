@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `MimeMessage` struct in crate `email`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, MimeMessage">
+
+    <title>email::MimeMessage - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>email</a></p><script>window.sidebarCurrent = {name: 'MimeMessage', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>email</a>::<wbr><a class='struct' href=''>MimeMessage</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-940' class='srclink' href='../src/email/message.rs.html#71-92' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct MimeMessage {
+    pub headers: <a class='struct' href='../email/struct.HeaderMap.html' title='email::HeaderMap'>HeaderMap</a>,
+    pub body: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>,
+    pub message_type: <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='enum' href='../email/enum.MimeMultipartType.html' title='email::MimeMultipartType'>MimeMultipartType</a>&gt;,
+    pub children: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>&gt;,
+    pub boundary: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>,
+}</pre><div class='docblock'><p>Represents a MIME message
+[unstable]</p>
+</div><h2 class='fields'>Fields</h2>
+<table><tr class='stab '>
+                                  <td id='structfield.headers'><code>headers</code></td><td><div class='docblock'><p>The headers for this message</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.body'><code>body</code></td><td><div class='docblock'><p>The content of this message</p>
+
+<p>Keep in mind that this is the undecoded form, so may be quoted-printable
+or base64 encoded.</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.message_type'><code>message_type</code></td><td><div class='docblock'><p>The MIME multipart message type of this message, or <code>None</code> if the message
+is not a multipart message.</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.children'><code>children</code></td><td><div class='docblock'><p>The sub-messages of this message</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.boundary'><code>boundary</code></td><td><div class='docblock'><p>The boundary used for MIME multipart messages</p>
+
+<p>This will always be set, even if the message only has a single part</p>
+</div></td></tr></table><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(body: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>) -&gt; <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h4>
+<div class='docblock'><p>[unstable]</p>
+</div><h4 id='method.new_with_children' class='method'><code>fn <a href='#method.new_with_children' class='fnname'>new_with_children</a>(body: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>, message_type: <a class='enum' href='../email/enum.MimeMultipartType.html' title='email::MimeMultipartType'>MimeMultipartType</a>, children: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>&gt;) -&gt; <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h4>
+<h4 id='method.new_with_boundary' class='method'><code>fn <a href='#method.new_with_boundary' class='fnname'>new_with_boundary</a>(body: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>, message_type: <a class='enum' href='../email/enum.MimeMultipartType.html' title='email::MimeMultipartType'>MimeMultipartType</a>, children: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>&gt;, boundary: <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>) -&gt; <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h4>
+<h4 id='method.new_blank_message' class='method'><code>fn <a href='#method.new_blank_message' class='fnname'>new_blank_message</a>() -&gt; <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h4>
+<h4 id='method.update_headers' class='method'><code>fn <a href='#method.update_headers' class='fnname'>update_headers</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>Update the headers on this message based on the internal state.</p>
+
+<p>When certain properties of the message are modified, the headers
+used to represent them are not automatically updated.
+Call this if these are changed.</p>
+</div><h4 id='method.parse' class='method'><code>fn <a href='#method.parse' class='fnname'>parse</a>(s: &amp;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a>) -&gt; <a class='type' href='../email/results/type.ParsingResult.html' title='email::results::ParsingResult'>ParsingResult</a>&lt;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>&gt;</code></h4>
+<div class='docblock'><p>Parse <code>s</code> into a MimeMessage.</p>
+
+<p>Recurses down into each message, supporting an unlimited depth of messages.</p>
+
+<p>Be warned that each sub-message that fails to be parsed will be thrown away.
+[unstable]</p>
+</div><h4 id='method.as_string' class='method'><code>fn <a href='#method.as_string' class='fnname'>as_string</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a></code></h4>
+<h4 id='method.as_string_without_headers' class='method'><code>fn <a href='#method.as_string_without_headers' class='fnname'>as_string_without_headers</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a></code></h4>
+<h4 id='method.decoded_body_bytes' class='method'><code>fn <a href='#method.decoded_body_bytes' class='fnname'>decoded_body_bytes</a>(&amp;self) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>&gt;&gt;</code></h4>
+<div class='docblock'><p>Decode the body of this message, as a series of bytes</p>
+</div><h4 id='method.decoded_body_string' class='method'><code>fn <a href='#method.decoded_body_string' class='fnname'>decoded_body_string</a>(&amp;self) -&gt; <a class='type' href='../email/results/type.ParsingResult.html' title='email::results::ParsingResult'>ParsingResult</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>&gt;</code></h4>
+<div class='docblock'><p>Decode the body of this message, as a string.</p>
+
+<p>This takes into account any charset as set on the <code>Content-Type</code> header,
+decoding the bytes with this character set.</p>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 id='derived_implementations'>Derived Implementations </h3><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> for <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h3><div class='impl-items'><h4 id='method.clone' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h4>
+<h4 id='method.clone_from' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: &amp;Self)</code></h4>
+</div><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html' title='core::fmt::Debug'>Debug</a> for <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h3><div class='impl-items'><h4 id='method.fmt' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#method.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class='struct' href='https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html' title='core::fmt::Formatter'>Formatter</a>) -&gt; <a class='type' href='https://doc.rust-lang.org/nightly/core/fmt/type.Result.html' title='core::fmt::Result'>Result</a></code></h4>
+</div><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html' title='core::cmp::PartialEq'>PartialEq</a> for <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h3><div class='impl-items'><h4 id='method.eq' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<h4 id='method.ne' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+</div><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> for <a class='struct' href='../email/struct.MimeMessage.html' title='email::MimeMessage'>MimeMessage</a></code></h3><div class='impl-items'></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "email";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

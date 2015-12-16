@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Address","Represents an RFC 5322 Address"]],"struct":[["Mailbox","Represents an RFC 5322 mailbox"]]});

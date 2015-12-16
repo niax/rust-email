@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MimeContentTransferEncoding","Special header type for the Content-Transfer-Encoding header."]],"struct":[["MimeContentTypeHeader","Special header type for the Content-Type header."]],"type":[["MimeContentType","Content-Type string, major/minor as the first and second elements respectively."]]});

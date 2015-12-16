@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MimeMultipartType","Marks the type of a multipart message"]],"struct":[["MimeMessage","Represents a MIME message [unstable]"]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["MIME_LINE_LENGTH",""]],"struct":[["Rfc5322Builder","Type for constructing RFC 5322 messages"],["Rfc5322Parser","RFC 5322 base parser for parsing  `atom`, `dot-atom`, `quoted-string`, `phrase`, `message`"]]});
