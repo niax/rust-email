@@ -1,3 +1,4 @@
+
 use super::header::{HeaderMap, Header};
 use super::rfc5322::{Rfc5322Parser, Rfc5322Builder};
 use super::results::{ParsingResult,ParsingError};
@@ -374,10 +375,8 @@ impl MimeMessage {
 
 #[cfg(test)]
 mod tests {
-    extern crate test;
     use super::*;
     use super::super::header::{Header,HeaderMap};
-    use self::test::Bencher;
 
     #[derive(Debug)]
     struct MessageTestResult<'s> {
@@ -581,49 +580,6 @@ mod tests {
         }
     }
 
-    macro_rules! bench_parser {
-        ($name:ident, $test:expr) => (
-            #[bench]
-            fn $name(b: &mut Bencher) {
-                let s = $test;
-                b.iter(|| {
-                    let _ = MimeMessage::parse(s);
-                });
-            }
-        );
-    }
-
-    bench_parser!(bench_simple, "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!");
-    bench_parser!(bench_simple_multipart,
-        "From: joe@example.org\r\n\
-         To: john@example.org\r\n\
-         Content-Type: multipart/alternative; boundary=foo\r\n\
-         \r\n\
-         Parent\r\n\
-         --foo\r\n\
-         Hello!\r\n\
-         --foo\r\n\
-         Other\r\n\
-         --foo"
-    );
-    bench_parser!(bench_deep_multipart,
-        "From: joe@example.org\r\n\
-         To: john@example.org\r\n\
-         Content-Type: multipart/mixed; boundary=foo\r\n\
-         \r\n\
-         Parent\r\n\
-         --foo\r\n\
-         Content-Type: multipart/alternative; boundary=bar\r\n\
-         \r\n\
-         --bar\r\n\
-         Hello!\r\n\
-         --bar\r\n\
-         Other\r\n\
-         --foo\r\n\
-         Outside\r\n\
-         --foo\r\n"
-    );
-
     struct MultipartParseTest<'s> {
         mime_type: (&'s str, &'s str),
         result: Option<MimeMultipartType>,
@@ -685,4 +641,55 @@ mod tests {
         // This is random, so we can only really check that it's the expected length
         assert_eq!(message.boundary.len(), super::BOUNDARY_LENGTH);
     }
+}
+
+#[cfg(all(feature = "nightly", test))]
+mod bench {
+    extern crate test;
+    use self::test::Bencher;
+
+    use super::*;
+
+    macro_rules! bench_parser {
+        ($name:ident, $test:expr) => (
+            #[bench]
+            fn $name(b: &mut Bencher) {
+                let s = $test;
+                b.iter(|| {
+                    let _ = MimeMessage::parse(s);
+                });
+            }
+        );
+    }
+
+    bench_parser!(bench_simple, "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!");
+    bench_parser!(bench_simple_multipart,
+        "From: joe@example.org\r\n\
+         To: john@example.org\r\n\
+         Content-Type: multipart/alternative; boundary=foo\r\n\
+         \r\n\
+         Parent\r\n\
+         --foo\r\n\
+         Hello!\r\n\
+         --foo\r\n\
+         Other\r\n\
+         --foo"
+    );
+    bench_parser!(bench_deep_multipart,
+        "From: joe@example.org\r\n\
+         To: john@example.org\r\n\
+         Content-Type: multipart/mixed; boundary=foo\r\n\
+         \r\n\
+         Parent\r\n\
+         --foo\r\n\
+         Content-Type: multipart/alternative; boundary=bar\r\n\
+         \r\n\
+         --bar\r\n\
+         Hello!\r\n\
+         --bar\r\n\
+         Other\r\n\
+         --foo\r\n\
+         Outside\r\n\
+         --foo\r\n"
+    );
 }
