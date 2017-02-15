@@ -1,4 +1,4 @@
-#![cfg_attr(test, feature(test))]
+#![cfg_attr(all(feature = "nightly", test), feature(test))]
 
 extern crate rustc_serialize;
 extern crate encoding;
