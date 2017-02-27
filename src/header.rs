@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use std::fmt;
 use std::ops::Deref;
 use std::slice::Iter as SliceIter;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use chrono::{
     DateTime,
@@ -194,12 +194,12 @@ impl fmt::Display for Header {
 
 /// [unstable]
 pub struct HeaderIter<'s> {
-    iter: SliceIter<'s, Rc<Header>>
+    iter: SliceIter<'s, Arc<Header>>
 }
 
 impl<'s> HeaderIter<'s> {
     /// [unstable]
-    fn new(iter: SliceIter<'s, Rc<Header>>) -> HeaderIter<'s> {
+    fn new(iter: SliceIter<'s, Arc<Header>>) -> HeaderIter<'s> {
         HeaderIter {
             iter: iter
         }
@@ -225,12 +225,12 @@ pub struct HeaderMap {
     //
     // The first is as an ordered list of headers,
     // which is used to iterate over.
-    ordered_headers: Vec<Rc<Header>>,
+    ordered_headers: Vec<Arc<Header>>,
     // The second is as a mapping between header names
     // and all of the headers with that name.
     //
     // This allows quick retrival of a header by name.
-    headers: HashMap<String, Vec<Rc<Header>>>,
+    headers: HashMap<String, Vec<Arc<Header>>>,
 }
 
 impl HeaderMap {
@@ -246,7 +246,7 @@ impl HeaderMap {
     /// [unstable]
     pub fn insert(&mut self, header: Header) {
         let header_name = header.name.clone();
-        let rc = Rc::new(header);
+        let rc = Arc::new(header);
         // Add to the ordered list of headers
         self.ordered_headers.push(rc.clone());
         
