@@ -1,7 +1,7 @@
 //! Module for decoding RFC 2047 strings
 // use for to_ascii_lowercase
 use std::ascii::AsciiExt;
-use rustc_serialize::base64::FromBase64;
+use base64::decode;
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -72,7 +72,7 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
 }
 
 fn decode_base64_encoding(s: &str) -> Result<Vec<u8>, String> {
-    match s.from_base64() {
+    match decode(s) {
         Ok(bytes) => Ok(bytes),
         Err(_) => Err("Failed to base64 decode".to_string()),
     }

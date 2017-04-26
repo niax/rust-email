@@ -8,7 +8,7 @@ use super::results::{ParsingResult,ParsingError};
 
 use std::ascii::AsciiExt;
 use std::collections::HashMap;
-use rustc_serialize::base64::FromBase64;
+use base64;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.
@@ -76,7 +76,7 @@ impl MimeContentTransferEncoding {
         match *self {
             MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
             MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(&input[..]).ok(),
-            MimeContentTransferEncoding::Base64 => input[..].from_base64().ok(),
+            MimeContentTransferEncoding::Base64 => base64::decode_config(&input[..], base64::MIME).ok(),
         }
     }
 }
