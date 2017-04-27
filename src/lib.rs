@@ -1,6 +1,6 @@
 #![cfg_attr(all(feature = "nightly", test), feature(test))]
 
-extern crate rustc_serialize;
+extern crate base64;
 extern crate encoding;
 extern crate time;
 extern crate chrono;
