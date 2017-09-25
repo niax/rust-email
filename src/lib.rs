@@ -2,7 +2,6 @@
 
 extern crate base64;
 extern crate encoding;
-extern crate time;
 extern crate chrono;
 extern crate rand;
 
