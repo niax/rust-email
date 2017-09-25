@@ -1,6 +1,6 @@
 [package]
 name = "email"
-version = "0.0.17"
+version = "0.0.18"
 authors = ["Nicholas Hollett <niax@niax.co.uk>"]
 description = "Implementation of RFC 5322 email messages"
 repository = "https://github.com/niax/rust-email"
@@ -10,9 +10,9 @@ build = "build.rs"
 
 [dependencies]
 encoding = "^0.2.0"
-chrono = "^0.3.0"
+chrono = "^0.4.0"
 lazy_static = "^0.2.0"
-base64 = "^0.5.0"
+base64 = "^0.6.0"
 rand = "^0.3.0"
 time = "^0.1.0"
 

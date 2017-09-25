@@ -137,12 +137,12 @@ impl<'s> Rfc822DateParser<'s> {
     /// extern crate email;
     ///
     /// use email::rfc822::Rfc822DateParser;
-    /// use chrono::UTC;
+    /// use chrono::Utc;
     ///
     /// fn main() {
     ///     let mut p = Rfc822DateParser::new("Thu, 18 Dec 2014 21:07:22 +0100");
     ///     let d = p.consume_datetime().unwrap();
-    ///     let as_utc = d.with_timezone(&UTC);
+    ///     let as_utc = d.with_timezone(&Utc);
     ///
     ///     assert_eq!(d, as_utc);
     /// }

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use chrono::{
     DateTime,
     FixedOffset,
-    UTC,
+    Utc,
 };
 
 use super::rfc2047::decode_rfc2047;
@@ -130,10 +130,10 @@ impl FromHeader for DateTime<FixedOffset> {
     }
 }
 
-impl FromHeader for DateTime<UTC> {
-    fn from_header(value: String) -> ParsingResult<DateTime<UTC>> {
+impl FromHeader for DateTime<Utc> {
+    fn from_header(value: String) -> ParsingResult<DateTime<Utc>> {
         let dt: ParsingResult<DateTime<FixedOffset>> = FromHeader::from_header(value);
-        dt.map(|i| i.with_timezone(&UTC))
+        dt.map(|i| i.with_timezone(&Utc))
     }
 }
 
@@ -310,7 +310,7 @@ mod tests {
     use chrono::{
         DateTime,
         FixedOffset,
-        UTC,
+        Utc,
     };
     use chrono::offset::TimeZone;
 
@@ -381,8 +381,8 @@ mod tests {
     #[test]
     fn test_datetime_utc_get_value() {
         let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
-        let dt_value = header.get_value::<DateTime<UTC>>().unwrap();
-        assert_eq!(dt_value, UTC.ymd(2014, 12, 17).and_hms(8, 35, 7));
+        let dt_value = header.get_value::<DateTime<Utc>>().unwrap();
+        assert_eq!(dt_value, Utc.ymd(2014, 12, 17).and_hms(8, 35, 7));
     }
 
     #[test]
