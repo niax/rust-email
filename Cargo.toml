@@ -20,4 +20,4 @@ time = "^0.1.0"
 nightly = []
 
 [build-dependencies]
-rustc_version = "0.1.*"
+version_check = "0.1"
