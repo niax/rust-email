@@ -1,9 +1,7 @@
-extern crate rustc_version;
-
-use rustc_version::{version_meta, Channel};
+extern crate version_check;
 
 fn main() {
-    if version_meta().channel == Channel::Nightly {
+    if version_check::is_nightly().unwrap_or(false) {
         println!("cargo:rustc-cfg=feature=\"nightly\"");
     }
 }
