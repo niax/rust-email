@@ -335,7 +335,7 @@ impl MimeMessage {
                         ParseState::Normal
                     }
                 },
-                (ParseState::ReadBoundary, '\r') => {
+                (ParseState::ReadBoundary, '\r') | (ParseState::ReadBoundary, '\n') => { 
                     let read_boundary = body_slice[(boundary_start + 1)..pos].trim();
                     if &read_boundary.to_string() == boundary {
                         // Boundary matches, push the part
@@ -355,7 +355,7 @@ impl MimeMessage {
                     ParseState::ReadBoundary
                 },
                 (ParseState::SeenLf, '-') => ParseState::SeenDash,
-                (ParseState::SeenCr, '\n') => ParseState::SeenLf,
+                (ParseState::SeenCr, '\n') | (ParseState::Normal, '\n') => ParseState::SeenLf,
                 (ParseState::Normal, '\r') => ParseState::SeenCr,
                 (ParseState::Normal, _) => ParseState::Normal,
                 (_, _) => ParseState::Normal,
@@ -474,6 +474,39 @@ mod tests {
                     ],
                 }),
                 name: "Simple multipart message parse",
+            },
+
+            ParseTest {
+                input: "From: joe@example.org\n\
+                        To: john@example.org\n\
+                        Content-Type: multipart/alternative; boundary=foo\n\
+                        \n\
+                        Parent\n\
+                        --foo\n\
+                        Hello!\n\
+                        --foo\n\
+                        Other\n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/alternative; boundary=foo"),
+                    ],
+                    body: "Parent\n",
+                    children: vec![
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Hello!\n",
+                            children: vec![],
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Other\n",
+                            children: vec![],
+                        },
+                    ],
+                }),
+                name: "Unix line ending multipart message parse",
             },
 
             ParseTest {
