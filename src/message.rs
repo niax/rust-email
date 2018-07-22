@@ -355,7 +355,9 @@ impl MimeMessage {
                     ParseState::ReadBoundary
                 },
                 (ParseState::SeenLf, '-') => ParseState::SeenDash,
-                (ParseState::SeenCr, '\n') | (ParseState::Normal, '\n') => ParseState::SeenLf,
+                (ParseState::SeenLf, '\n') => ParseState::SeenLf,
+                (ParseState::Normal, '\n') => ParseState::SeenLf,
+                (ParseState::SeenCr, '\n') => ParseState::SeenLf,
                 (ParseState::Normal, '\r') => ParseState::SeenCr,
                 (ParseState::Normal, _) => ParseState::Normal,
                 (_, _) => ParseState::Normal,
@@ -479,20 +481,21 @@ mod tests {
             ParseTest {
                 input: "From: joe@example.org\n\
                         To: john@example.org\n\
-                        Content-Type: multipart/alternative; boundary=foo\n\
+                        Content-Type: multipart/alternative; boundary=\"=-foo\"\n\
+                        \n\
                         \n\
                         Parent\n\
-                        --foo\n\
+                        --=-foo\n\
                         Hello!\n\
-                        --foo\n\
+                        --=-foo\n\
                         Other\n",
                 output: Some(MessageTestResult {
                     headers: vec![
                         ("From", "joe@example.org"),
                         ("To", "john@example.org"),
-                        ("Content-Type", "multipart/alternative; boundary=foo"),
+                        ("Content-Type", "multipart/alternative; boundary=\"=-foo\""),
                     ],
-                    body: "Parent\n",
+                    body: "\nParent\n",
                     children: vec![
                         MessageTestResult {
                             headers: vec![ ],
