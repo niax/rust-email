@@ -47,18 +47,25 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
         match char_iter.next() {
             Some('=') => {
                 let mut hex_string = String::new();
-                for _ in 0..2 {
-                    let hex_digit_char = char_iter.next().unwrap();  // FIXME
-                    hex_string.push(hex_digit_char);
-                };
-
-                // = followed by a newline means a continuation
+                match char_iter.next().unwrap() {
+                    '\r' => {
+                        // Possible continuation - expect the next character to be a newline
+                        if char_iter.next().unwrap() == '\n' {
+                            continue;
+                        } else {
+                            return Err("Invalid line endings in text".to_string())
+                        }
+                    },
+                    '\n' => continue, // treat unix line endings similar to CRLF
+                    c => {
+                        hex_string.push(c);
+                        hex_string.push(char_iter.next().unwrap());
+                    },
+                }
                 let hex_string_slice = &hex_string[..];
-                if hex_string_slice != "\r\n" {
-                    match u8::from_str_radix(hex_string_slice, 16) {
-                        Ok(char_val) => { result.push(char_val) },
-                        Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
-                    }
+                match u8::from_str_radix(hex_string_slice, 16) {
+                    Ok(char_val) => { result.push(char_val) },
+                    Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
                 }
             },
             Some(c) => {
@@ -87,6 +94,11 @@ mod tests {
         output: &'s str,
     }
 
+    struct DecodeByteTest<'s> {
+        input: &'s str,
+        output: &'s [u8],
+    }
+
     #[test]
     fn test_decode() {
         let tests = [
@@ -106,6 +118,26 @@ mod tests {
 
         for t in tests.iter() {
             assert_eq!(decode_rfc2047(t.input).unwrap(), t.output.to_string());
+        }
+    }
+
+    #[test]
+    fn test_multiline_quoted_printable_decode() {
+        let tests = [
+            // Test with CRLF line endings
+            DecodeByteTest {
+                input: "Python 2=2E=\r\n6",
+                output: &[80, 121, 116, 104, 111, 110, 32, 50, 46, 54],
+            },
+            // Test with Unix line endings
+            DecodeByteTest {
+                input: "Python 2=2E=\n6",
+                output: &[80, 121, 116, 104, 111, 110, 32, 50, 46, 54],
+            },
+        ];
+
+        for t in tests.iter() { 
+            assert_eq!(decode_q_encoding(t.input).unwrap(), t.output.to_vec());
         }
     }
 
