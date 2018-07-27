@@ -350,15 +350,13 @@ impl MimeMessage {
                     }
                 },
                 (ParseState::ReadBoundary, _) => ParseState::ReadBoundary,
+                (_, '\n') => ParseState::SeenLf,
+                (_, '\r') => ParseState::SeenCr,
                 (ParseState::SeenDash, '-') => {
                     boundary_start = pos;
                     ParseState::ReadBoundary
                 },
                 (ParseState::SeenLf, '-') => ParseState::SeenDash,
-                (ParseState::SeenLf, '\n') => ParseState::SeenLf,
-                (ParseState::Normal, '\n') => ParseState::SeenLf,
-                (ParseState::SeenCr, '\n') => ParseState::SeenLf,
-                (ParseState::Normal, '\r') => ParseState::SeenCr,
                 (ParseState::Normal, _) => ParseState::Normal,
                 (_, _) => ParseState::Normal,
             };
