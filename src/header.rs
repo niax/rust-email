@@ -158,6 +158,13 @@ pub struct Header {
     value: String,
 }
 
+impl<S: Into<String>, T: Into<String>> From<(S, T)> for Header {
+    fn from(header: (S, T)) -> Self {
+        let (name, value) = header;
+        Header::new(name.into(), value.into())
+    }
+}
+
 impl Header {
     /// Creates a new Header for the given `name` and `value`
     /// [unstable]

@@ -90,6 +90,25 @@ impl fmt::Display for Mailbox {
     }
 }
 
+impl<'a> From<&'a str> for Mailbox {
+    fn from(mailbox: &'a str) -> Mailbox {
+        Mailbox::new(mailbox.into())
+    }
+}
+
+impl From<String> for Mailbox {
+    fn from(mailbox: String) -> Mailbox {
+        Mailbox::new(mailbox)
+    }
+}
+
+impl<S: Into<String>, T: Into<String>> From<(S, T)> for Mailbox {
+    fn from(header: (S, T)) -> Mailbox {
+        let (address, alias) = header;
+        Mailbox::new_with_name(alias.into(), address.into())
+    }
+}
+
 impl FromStr for Mailbox {
     type Err = ParsingError;
 
