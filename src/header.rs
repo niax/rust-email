@@ -195,7 +195,9 @@ impl Header {
 
 impl fmt::Display for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}: {}", self.name, self.value)
+        use rfc2047::encode_rfc2047;
+
+        write!(fmt, "{}: {}", self.name, encode_rfc2047(&self.value))
     }
 }
 
@@ -431,5 +433,17 @@ mod tests {
         }
         // And that there is the right number of them
         assert_eq!(count, expected_headers.len());
+    }
+
+    #[test]
+    fn test_header_encodes_value_as_rfc2047() {
+        use rfc2047::encode_rfc2047;
+
+        let value = "Hällö".to_string();
+        let header = Header::new_with_value("Subject".to_string(), value.clone()).unwrap();
+        assert_eq!(
+            format!("{}", header)[9..],
+            encode_rfc2047(&value)
+        );
     }
 }
