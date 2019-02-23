@@ -14,6 +14,7 @@ use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 const BOUNDARY_LENGTH: usize = 30;
 
@@ -94,7 +95,10 @@ pub struct MimeMessage {
 
 impl MimeMessage {
     fn random_boundary() -> String {
-        thread_rng().gen_ascii_chars().take(BOUNDARY_LENGTH).collect()
+        let mut rng = thread_rng();
+        std::iter::repeat(())
+            .map(|()| rng.sample(Alphanumeric))
+            .take(BOUNDARY_LENGTH).collect()
     }
 
     /// [unstable]
