@@ -195,10 +195,21 @@ impl Header {
 
 impl fmt::Display for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use rfc2047::encode_rfc2047;
 
-        write!(fmt, "{}: {}", self.name, encode_rfc2047(&self.value))
+        println!("{}", self.value);
+        write!(fmt, "{}: {}", self.name, encode_wordwise(&self.value))
     }
+}
+
+fn encode_wordwise(text: &str) -> String {
+    use rfc2047::encode_rfc2047;
+
+    text.split(' ')
+        .map(|word| encode_rfc2047(&word))
+        .fold(String::new(), |phrase, word| match phrase.len() {
+            0 => phrase + &encode_rfc2047(&word),
+            _ => phrase + " " + &encode_rfc2047(&word),
+        })
 }
 
 /// [unstable]
@@ -444,6 +455,21 @@ mod tests {
         assert_eq!(
             format!("{}", header)[9..],
             encode_rfc2047(&value)
+        );
+    }
+
+    #[test]
+    fn test_header_with_email_address_only_encodes_name() {
+        use rfc2047::encode_rfc2047;
+
+        let first_name = "Renée";
+        let last_name = "Sørensen";
+        let email = "renee.sorensen@foo.bar";
+        let value = format!("{} {} <{}>", first_name, last_name, email);
+        let header = Header::new_with_value("From".to_string(), value).unwrap();
+        assert_eq!(
+            format!("{}", header),
+            format!("From: {} {} <{}>", encode_rfc2047(&first_name), encode_rfc2047(&last_name), email)
         );
     }
 }
