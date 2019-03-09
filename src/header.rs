@@ -462,14 +462,24 @@ mod tests {
     fn test_header_with_email_address_only_encodes_name() {
         use rfc2047::encode_rfc2047;
 
-        let first_name = "Renée";
-        let last_name = "Sørensen";
-        let email = "renee.sorensen@foo.bar";
-        let value = format!("{} {} <{}>", first_name, last_name, email);
+        let value = "Renée Sørensen <renee.sorensen@foo.bar>";
         let header = Header::new_with_value("From".to_string(), value).unwrap();
         assert_eq!(
             format!("{}", header),
-            format!("From: {} {} <{}>", encode_rfc2047(&first_name), encode_rfc2047(&last_name), email)
+            format!("From: {} {} <{}>", encode_rfc2047("Renée"), encode_rfc2047("Sørensen"), "renee.sorensen@foo.bar")
         );
+    }
+
+    #[test]
+    fn test_header_decoding_reverses_encoding() {
+        let test_values = [
+            "汤唯 <a@b.c>",
+            "André <a@b.c>",
+            "Iñigo Montoya <a@b.c>",
+        ];
+        for value in &test_values {
+            let header = Header::new_with_value("To".to_string(), value.to_string()).unwrap();
+            assert_eq!(header.get_value::<String>().unwrap(), value.to_string());
+        }
     }
 }
