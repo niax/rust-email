@@ -184,4 +184,13 @@ mod tests {
         let umlauty = "Überräschùng!";
         assert_eq!(&encode_rfc2047(umlauty)[..10], "=?utf-8?B?");
     }
+
+    #[test]
+    fn test_decode_is_inverse_of_encode() {
+        let umlauty = "Hällöö";
+        assert_eq!(
+            decode_rfc2047(&encode_rfc2047(umlauty)).unwrap(),
+            umlauty
+        );
+    }
 }
