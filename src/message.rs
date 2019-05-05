@@ -308,6 +308,8 @@ impl MimeMessage {
     fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
         #[derive(Debug)]
         enum ParseState {
+            Distinguished,
+            DistinguishedEnd,
             Normal,
             SeenCr,
             SeenLf,
@@ -327,8 +329,16 @@ impl MimeMessage {
 
         let body_slice = &body[..];
 
+        let mut done = false;
+
         for (pos, c) in body.char_indices() {
             state = match (state, c) {
+                (ParseState::ReadBoundary, '-') => {
+                    ParseState::Distinguished
+                },
+                (ParseState::Distinguished, '-') => {
+                    ParseState::DistinguishedEnd
+                },
                 (ParseState::BoundaryEnd, _) => {
                     // We're now out of a boundary, so remember where the end is,
                     // so we can slice from the end of this boundary to the start of the next.
@@ -339,7 +349,21 @@ impl MimeMessage {
                         ParseState::Normal
                     }
                 },
-                (ParseState::ReadBoundary, '\r') | (ParseState::ReadBoundary, '\n') => { 
+                (ParseState::DistinguishedEnd, '\r') | (ParseState::DistinguishedEnd, '\n') => {
+                    let read_boundary = body_slice[(boundary_start + 1)..(pos - 2)].trim();
+                    if &read_boundary.to_string() == boundary {
+                        // Boundary matches, push the part
+                        // The part is from the last boundary's end to this boundary's beginning
+                        let part = &body_slice[boundary_end..(boundary_start - 1)];
+                        parts.push(part.to_string());
+                        done = true;
+                        break
+                    } else {
+                        // This isn't our boundary, so leave it.
+                        ParseState::Normal
+                    }
+                },
+                (ParseState::ReadBoundary, '\r') | (ParseState::ReadBoundary, '\n') => {
                     let read_boundary = body_slice[(boundary_start + 1)..pos].trim();
                     if &read_boundary.to_string() == boundary {
                         // Boundary matches, push the part
@@ -366,10 +390,12 @@ impl MimeMessage {
             };
         }
 
-        // Push in the final part of the message (what remains)
-        let final_part = &body_slice[boundary_end..];
-        if final_part.trim().len() != 0 {
-            parts.push(final_part.to_string());
+        if !done {
+            // Push in the final part of the message (what remains)
+            let final_part = &body_slice[boundary_end..];
+            if final_part.trim().len() != 0 {
+                parts.push(final_part.to_string());
+            }
         }
 
         parts
@@ -565,6 +591,42 @@ mod tests {
                 }),
                 name: "Deeply nested multipart test",
             },
+            ParseTest {
+                input: "From: joe@example.org\n\
+                        To: john@example.org\n\
+                        Content-Type: multipart/alternative; boundary=\"foo\"\n\
+                        \n\
+                        \n\
+                        Parent\n\
+                        --foo\n\
+                        Hello!\n\
+                        --foo\n\
+                        Other\n\
+                        --foo--\n\
+                        Outside\n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/alternative; boundary=\"foo\""),
+                    ],
+                    body: "\nParent\n",
+                    children: vec![
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Hello!\n",
+                            children: vec![],
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Other\n",
+                            children: vec![],
+                        },
+                    ],
+                }),
+                name: "Distinguished boundary",
+            },
+
         ];
 
         for test in tests.into_iter() {
