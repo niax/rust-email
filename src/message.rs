@@ -36,10 +36,18 @@ pub enum MimeMultipartType {
     ///
     /// As defined by Section 5.1.5 of RFC 2046
     Digest,
+    /// An encyrpted multipart composed by two independent entries.
+    ///
+    /// As defined by Section 2.2 of RFC 1847
+    Encrypted,
     /// Entry order does not matter, and could be displayed simultaneously.
     ///
     /// As defined by Section 5.1.6 of RFC 2046
     Parallel,
+    /// An signed multipart composed by two independent entries.
+    ///
+    /// As defined by Section 2.1 of RFC 1847
+    Signed,
 }
 
 impl MimeMultipartType {
@@ -50,6 +58,8 @@ impl MimeMultipartType {
             ("multipart", "alternative") => Some(MimeMultipartType::Alternative),
             ("multipart", "digest") => Some(MimeMultipartType::Digest),
             ("multipart", "parallel") => Some(MimeMultipartType::Parallel),
+            ("multipart", "encrypted") => Some(MimeMultipartType::Encrypted),
+            ("multipart", "signed") => Some(MimeMultipartType::Signed),
             ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartType::Mixed),
             _ => None,
         }
@@ -62,7 +72,9 @@ impl MimeMultipartType {
             MimeMultipartType::Mixed => (multipart, "mixed".to_string()),
             MimeMultipartType::Alternative => (multipart, "alternative".to_string()),
             MimeMultipartType::Digest => (multipart, "digest".to_string()),
+            MimeMultipartType::Encrypted => (multipart, "encrypted".to_string()),
             MimeMultipartType::Parallel => (multipart, "parallel".to_string()),
+            MimeMultipartType::Signed => (multipart, "signed".to_string()),
         }
     }
 }
@@ -626,6 +638,72 @@ mod tests {
                 }),
                 name: "Distinguished boundary",
             },
+            ParseTest {
+                input: "From: joe@example.org\n\
+                        To: john@example.org\n\
+                        Content-Type: multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"foo\"\n\
+                        \n\
+                        \n\
+                        Parent\n\
+                        --foo\n\
+                        Hello!\n\
+                        --foo\n\
+                        Other\n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"foo\""),
+                    ],
+                    body: "\nParent\n",
+                    children: vec![
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Hello!\n",
+                            children: vec![],
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Other\n",
+                            children: vec![],
+                        },
+                    ],
+                }),
+                name: "Distinguished boundary",
+            },
+            ParseTest {
+                input: "From: joe@example.org\n\
+                        To: john@example.org\n\
+                        Content-Type: multipart/signed; protocol=\"application/pgp-signature\"; boundary=\"foo\"\n\
+                        \n\
+                        \n\
+                        Parent\n\
+                        --foo\n\
+                        Hello!\n\
+                        --foo\n\
+                        Other\n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/signed; protocol=\"application/pgp-signature\"; boundary=\"foo\""),
+                    ],
+                    body: "\nParent\n",
+                    children: vec![
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Hello!\n",
+                            children: vec![],
+                        },
+                        MessageTestResult {
+                            headers: vec![ ],
+                            body: "Other\n",
+                            children: vec![],
+                        },
+                    ],
+                }),
+                name: "Signed",
+            },
 
         ];
 
@@ -701,6 +779,10 @@ mod tests {
                 result: Some(MimeMultipartType::Digest),
             },
             MultipartParseTest {
+                mime_type: ("multipart", "encrypted"),
+                result: Some(MimeMultipartType::Encrypted),
+            },
+            MultipartParseTest {
                 mime_type: ("multipart", "parallel"),
                 result: Some(MimeMultipartType::Parallel),
             },
@@ -708,6 +790,10 @@ mod tests {
             MultipartParseTest {
                 mime_type: ("multipart", "potato"),
                 result: Some(MimeMultipartType::Mixed),
+            },
+            MultipartParseTest {
+                mime_type: ("multipart", "signed"),
+                result: Some(MimeMultipartType::Signed),
             },
             // Test failure state
             MultipartParseTest {
@@ -732,7 +818,9 @@ mod tests {
         assert_eq!(MimeMultipartType::Mixed.to_content_type(),     (multipart.clone(), "mixed".to_string()));
         assert_eq!(MimeMultipartType::Alternative.to_content_type(), (multipart.clone(), "alternative".to_string()));
         assert_eq!(MimeMultipartType::Digest.to_content_type(),    (multipart.clone(), "digest".to_string()));
+        assert_eq!(MimeMultipartType::Encrypted.to_content_type(),    (multipart.clone(), "encrypted".to_string()));
         assert_eq!(MimeMultipartType::Parallel.to_content_type(),  (multipart.clone(), "parallel".to_string()));
+        assert_eq!(MimeMultipartType::Signed.to_content_type(),    (multipart.clone(), "signed".to_string()));
     }
 
     #[test]
