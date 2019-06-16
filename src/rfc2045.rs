@@ -49,7 +49,9 @@ impl<'s> Rfc2045Parser<'s> {
             self.parser.consume_linear_whitespace();
 
             let attribute = self.consume_token();
+            self.parser.consume_linear_whitespace();
             assert_eq!(self.parser.consume_char(), Some('='));
+            self.parser.consume_linear_whitespace();
             // Value can be token or quoted-string
             let value = if self.parser.peek() == '"' {
                 self.parser.consume_quoted_string()
@@ -113,6 +115,15 @@ mod tests {
                     ("baz", "qux"),
                 ]),
                 name: "Multiple values",
+            },
+
+            ParserTestCase {
+                input: "foo/bar; foo = \"bar\"; baz=qux",
+                output: ("foo/bar", vec![
+                    ("foo", "bar"),
+                    ("baz", "qux"),
+                ]),
+                name: "Parameter with space",
             },
         ];
 
