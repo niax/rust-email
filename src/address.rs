@@ -313,6 +313,13 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_address_parsing() {
+	for a in vec!["<a@example.com", "a@"].iter() {
+            AddressParser::new(a).parse_mailbox().expect_err("parse failure");
+        }
+    }
+
+    #[test]
     fn test_address_group_to_string() {
         let addr = Address::new_group("undisclosed recipients".to_string(), vec![]);
         assert_eq!(addr.to_string(), "undisclosed recipients: ;".to_string());

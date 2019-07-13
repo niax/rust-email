@@ -321,7 +321,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// atext character.
     /// [unstable]
     pub fn consume_atom(&mut self, allow_dot: bool) -> Option<String> {
-        if !self.peek().is_atext() {
+        if self.eof() || !self.peek().is_atext() {
             None
         } else {
             Some(self.consume_while(|c| {
