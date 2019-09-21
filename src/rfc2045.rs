@@ -46,6 +46,11 @@ impl<'s> Rfc2045Parser<'s> {
         while !self.parser.eof() {
             // Eat the ; and any whitespace
             assert_eq!(self.parser.consume_char(), Some(';'));
+
+            // RFC ignorant mail systems may append a ';' without a parameter after.
+            // This violates the RFC but does happen, so deal with it.
+            if self.parser.eof() { break; }
+
             self.parser.consume_linear_whitespace();
 
             let attribute = self.consume_token();
