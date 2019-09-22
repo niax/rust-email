@@ -145,6 +145,16 @@ mod tests {
                     ],
                 }),
             },
+            ContentTypeParseTest {
+                input: "text/plain; charset=\"windows-1251\";",
+                result: Some(ContentTypeParseTestResult {
+                    major_type: "text",
+                    minor_type: "plain",
+                    params: vec![
+                        ("charset", "windows-1251"),
+                    ],
+                }),
+            }
         ];
 
         for test in tests.into_iter() {
