@@ -885,6 +885,73 @@ mod tests {
         let headers = mime.headers_without_content_type();
         assert_eq!(headers.len(), 0);
     }
+
+    #[test]
+    fn test_multipart_encrypted() {
+        let text = "From: Alice Lovelace <alice@openpgp.example>
+To: Bob Babbage <bob@openpgp.example>
+Subject: Encrypted message
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol=\"application/pgp-encrypted\";
+ boundary=\"boundary_encrypted\"
+
+This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)
+--boundary_encrypted
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--boundary_encrypted
+Content-Type: application/octet-stream; name=\"encrypted.asc\"
+Content-Description: OpenPGP encrypted message
+Content-Disposition: inline; filename=\"encrypted.asc\"
+
+-----BEGIN PGP MESSAGE-----
+-----END PGP MESSAGE-----
+
+--boundary_encrypted--";
+        let mime = MimeMessage::parse(text).unwrap();
+        assert_eq!(mime.message_type.unwrap(), MimeMultipartType::Encrypted);
+        assert_eq!(mime.headers.len(), 5);
+        assert_eq!(mime.body,
+                   "This is an OpenPGP/MIME encrypted message \
+                    (RFC 4880 and 3156)\n");
+        assert_eq!(mime.children.len(), 2);
+        // XXX: The original boundary should have been removed, lettre does it.
+        assert_eq!(mime.children[1].body,
+                   "-----BEGIN PGP MESSAGE-----\n\
+                    -----END PGP MESSAGE-----\n\n--boundary_encrypted--");
+
+        // XXX: parse add extra new lines.
+        assert_eq!(mime.children[0].body, "Version: 1\n\n");
+        assert_eq!(mime.boundary, "boundary_encrypted");
+
+        let mime2 = MimeMessage::parse(&mime.as_string()).unwrap();
+        assert_eq!(format!("{}\r\n", mime.body), mime2.body);
+        assert_eq!(mime.boundary, mime2.boundary);
+        assert_eq!(mime.message_type, mime2.message_type);
+
+        let ct: String = mime.headers.get("Content-Type".to_string())
+            .unwrap().get_value().unwrap();
+        assert_eq!(ct,
+                   "multipart/encrypted; \
+                    protocol=\"application/pgp-encrypted\";\
+                    boundary=\"boundary_encrypted\"");
+
+        // XXX: the space after `multipart` gets removed.
+        let ct2: String = mime2.headers.get("Content-Type".to_string())
+            .unwrap().get_value().unwrap();
+        assert_eq!(ct2,
+                   "multipart/encrypted;\
+                    protocol=\"application/pgp-encrypted\";\
+                    boundary=\"boundary_encrypted\"");
+
+        assert_eq!(format!("{}\r\n\r\n", mime.children[0].body),
+            mime2.children[0].body);
+        assert_eq!(mime.children[1].body,
+            format!("{}--boundary_encrypted--", mime2.children[1].body));
+    }
 }
 
 #[cfg(all(feature = "nightly", test))]
