@@ -189,6 +189,20 @@ impl MimeMessage {
         }
     }
 
+    /// Returns a copy of the headers without the `Content-Type` header.
+    ///
+    /// It used to add a parameter to the `Content-Type` header, by cloning
+    /// all the headers except that one and then adding it.
+    fn headers_without_content_type(&self) -> HeaderMap {
+        let mut header_map = HeaderMap::new();
+        let headers: Vec<&Header> = self.headers.iter()
+            .filter(|header| !header.to_string().starts_with("Content-Type"))
+            .collect();
+        for header in headers {
+            header_map.insert(header.clone());
+        }
+        header_map
+    }
 
     /// Parse `s` into a MimeMessage.
     ///
@@ -836,6 +850,19 @@ mod tests {
         let message = MimeMessage::new("Body".to_string());
         // This is random, so we can only really check that it's the expected length
         assert_eq!(message.boundary.len(), super::BOUNDARY_LENGTH);
+    }
+
+    #[test]
+    fn test_headers_without_content_type() {
+        let mime = MimeMessage::parse(
+            "Content-Type: multipart/signed; protocol=pgp-encrypted\nBody"
+        ).unwrap();
+        assert_eq!(mime.headers.len(), 1);
+        let ct_value: String = mime.headers.get("Content-Type".to_string())
+            .unwrap().get_value().unwrap();
+        assert_eq!(ct_value, "multipart/signed; protocol=pgp-encrypted");
+        let headers = mime.headers_without_content_type();
+        assert_eq!(headers.len(), 0);
     }
 }
 
