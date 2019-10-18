@@ -9,6 +9,7 @@ use super::mimeheaders::{
 };
 
 use std::collections::HashMap;
+use std::fmt;
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -76,6 +77,13 @@ impl MimeMultipartType {
             MimeMultipartType::Parallel => (multipart, "parallel".to_string()),
             MimeMultipartType::Signed => (multipart, "signed".to_string()),
         }
+    }
+}
+
+impl fmt::Display for MimeMultipartType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let ct = self.to_content_type();
+        write!(f, "{}/{}", ct.0, ct.1)
     }
 }
 
