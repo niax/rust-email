@@ -66,6 +66,17 @@ pub enum MimeContentTransferEncoding {
     Base64,
 }
 
+// Util function for MimeContentTransferEncoding::decode
+fn byte_in_base64_alphabet(b: u8) -> bool {
+    match b {
+        b'A' ... b'Z' => true,
+        b'a' ... b'z' => true,
+        b'0' ... b'9' => true,
+        b'+' | b'/' | b'=' => true,
+        _ => false,
+    }
+}
+
 impl MimeContentTransferEncoding {
     /// Decode the input string with this transfer encoding.
     ///
@@ -76,7 +87,13 @@ impl MimeContentTransferEncoding {
         match *self {
             MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
             MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(&input[..]).ok(),
-            MimeContentTransferEncoding::Base64 => base64::decode_config(&input[..], base64::MIME).ok(),
+            MimeContentTransferEncoding::Base64 => {
+                // As per RFC 2045 section 6.8, all bytes not part of the Base64 Alphabet Table are
+                // to be ignored.
+                let mut buf = input.clone().into_bytes();
+                buf.retain(|b| byte_in_base64_alphabet(*b));
+                base64::decode(&buf).ok()
+            }
         }
     }
 }
