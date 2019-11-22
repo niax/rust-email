@@ -195,8 +195,21 @@ impl Header {
 
 impl fmt::Display for Header {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}: {}", self.name, self.value)
+
+        println!("{}", self.value);
+        write!(fmt, "{}: {}", self.name, encode_wordwise(&self.value))
     }
+}
+
+fn encode_wordwise(text: &str) -> String {
+    use rfc2047::encode_rfc2047;
+
+    text.split(' ')
+        .map(|word| encode_rfc2047(&word))
+        .fold(String::new(), |phrase, word| match phrase.len() {
+            0 => phrase + &encode_rfc2047(&word),
+            _ => phrase + " " + &encode_rfc2047(&word),
+        })
 }
 
 /// [unstable]
@@ -431,5 +444,42 @@ mod tests {
         }
         // And that there is the right number of them
         assert_eq!(count, expected_headers.len());
+    }
+
+    #[test]
+    fn test_header_encodes_value_as_rfc2047() {
+        use rfc2047::encode_rfc2047;
+
+        let value = "Hällö".to_string();
+        let header = Header::new_with_value("Subject".to_string(), value.clone()).unwrap();
+        assert_eq!(
+            format!("{}", header)[9..],
+            encode_rfc2047(&value)
+        );
+    }
+
+    #[test]
+    fn test_header_with_email_address_only_encodes_name() {
+        use rfc2047::encode_rfc2047;
+
+        let value = "Renée Sørensen <renee.sorensen@foo.bar>";
+        let header = Header::new_with_value("From".to_string(), value).unwrap();
+        assert_eq!(
+            format!("{}", header),
+            format!("From: {} {} <{}>", encode_rfc2047("Renée"), encode_rfc2047("Sørensen"), "renee.sorensen@foo.bar")
+        );
+    }
+
+    #[test]
+    fn test_header_decoding_reverses_encoding() {
+        let test_values = [
+            "汤唯 <a@b.c>",
+            "André <a@b.c>",
+            "Iñigo Montoya <a@b.c>",
+        ];
+        for value in &test_values {
+            let header = Header::new_with_value("To".to_string(), value.to_string()).unwrap();
+            assert_eq!(header.get_value::<String>().unwrap(), value.to_string());
+        }
     }
 }

@@ -1,7 +1,7 @@
 //! Module for decoding RFC 2047 strings
 // use for to_ascii_lowercase
 use std::ascii::AsciiExt;
-use base64::decode;
+use base64::{self, decode};
 
 use encoding::label::encoding_from_whatwg_label;
 use encoding::DecoderTrap;
@@ -36,6 +36,21 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
             }
             _ => None,
         }
+    }
+}
+
+/// Encode a UTF-8 Rust string according to RFC 2047, if need be.
+///
+/// Currently, this only uses "B" encoding, when pure ASCII cannot represent the
+/// string accurately.
+pub fn encode_rfc2047(text: &str) -> String {
+    if text.is_ascii() {
+        format!("{}", text)
+    } else {
+        format!(
+            "=?utf-8?B?{}?=",
+            base64::encode_config(text.as_bytes(), base64::MIME)
+        )
     }
 }
 
@@ -103,11 +118,11 @@ mod tests {
     fn test_decode() {
         let tests = [
             DecodeTest {
-                input: "=?ISO-8859-1?Q?Test=20text?=", 
+                input: "=?ISO-8859-1?Q?Test=20text?=",
                 output: "Test text"
             },
             DecodeTest {
-                input: "=?ISO-8859-1?b?VGVzdCB0ZXh0?=", 
+                input: "=?ISO-8859-1?b?VGVzdCB0ZXh0?=",
                 output: "Test text"
             },
             DecodeTest {
@@ -136,7 +151,7 @@ mod tests {
             },
         ];
 
-        for t in tests.iter() { 
+        for t in tests.iter() {
             assert_eq!(decode_q_encoding(t.input).unwrap(), t.output.to_vec());
         }
     }
@@ -156,5 +171,26 @@ mod tests {
             println!("{}", t);
             assert!(decode_rfc2047(*t).is_none());
         }
+    }
+
+    #[test]
+    fn test_encode_preserves_ascii_string() {
+        let plain_ascii = "uiae 282!";
+        assert_eq!(encode_rfc2047(plain_ascii), plain_ascii);
+    }
+
+    #[test]
+    fn test_encode_uses_base64_for_non_ascii_string() {
+        let umlauty = "Überräschùng!";
+        assert_eq!(&encode_rfc2047(umlauty)[..10], "=?utf-8?B?");
+    }
+
+    #[test]
+    fn test_decode_is_inverse_of_encode() {
+        let umlauty = "Hällöö";
+        assert_eq!(
+            decode_rfc2047(&encode_rfc2047(umlauty)).unwrap(),
+            umlauty
+        );
     }
 }
