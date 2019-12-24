@@ -6,6 +6,7 @@ description = "Implementation of RFC 5322 email messages"
 repository = "https://github.com/niax/rust-email"
 documentation = "https://niax.github.io/rust-email/email/"
 license = "MIT"
+edition = "2018"
 build = "build.rs"
 
 [dependencies]

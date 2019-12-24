@@ -8,7 +8,7 @@ extern crate rand;
 #[macro_use]
 extern crate lazy_static;
 
-pub use header::{
+pub use crate::header::{
     Header,
     HeaderMap,
     HeaderIter,
@@ -16,8 +16,8 @@ pub use header::{
     ToHeader,
     ToFoldedHeader,
 };
-pub use address::{Address, Mailbox};
-pub use message::{
+pub use crate::address::{Address, Mailbox};
+pub use crate::message::{
     MimeMessage,
     MimeMultipartType,
 };

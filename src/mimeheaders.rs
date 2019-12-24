@@ -69,9 +69,9 @@ pub enum MimeContentTransferEncoding {
 // Util function for MimeContentTransferEncoding::decode
 fn byte_in_base64_alphabet(b: u8) -> bool {
     match b {
-        b'A' ... b'Z' => true,
-        b'a' ... b'z' => true,
-        b'0' ... b'9' => true,
+        b'A' ..= b'Z' => true,
+        b'a' ..= b'z' => true,
+        b'0' ..= b'9' => true,
         b'+' | b'/' | b'=' => true,
         _ => false,
     }

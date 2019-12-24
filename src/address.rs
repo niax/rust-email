@@ -203,13 +203,13 @@ impl<'s> AddressParser<'s> {
             None => return Err(ParsingError::new(format!("Couldn't find group name: {}", self.p.peek_to_end())))
         };
 
-        try!(self.p.assert_char(':'));
+        r#try!(self.p.assert_char(':'));
         self.p.consume_char();
 
         let mut mailboxes = Vec::new();
 
         while !self.p.eof() && self.p.peek() != ';' {
-            mailboxes.push(try!(self.parse_mailbox()));
+            mailboxes.push(r#try!(self.parse_mailbox()));
 
             if !self.p.eof() && self.p.peek() == ',' {
                 self.p.consume_char();
@@ -227,7 +227,7 @@ impl<'s> AddressParser<'s> {
             Err(_) => {
                 // Revert back to our original position to try to parse an addr-spec
                 self.p.pop_position();
-                Ok(Mailbox::new(try!(self.parse_addr_spec())))
+                Ok(Mailbox::new(r#try!(self.parse_addr_spec())))
             }
         }
     }
@@ -237,10 +237,10 @@ impl<'s> AddressParser<'s> {
         let display_name = self.p.consume_phrase(false);
         self.p.consume_linear_whitespace();
 
-        try!(self.p.assert_char('<'));
+        r#try!(self.p.assert_char('<'));
         self.p.consume_char();
 
-        let addr = try!(self.parse_addr_spec());
+        let addr = r#try!(self.parse_addr_spec());
         if self.p.consume_char() != Some('>') {
             // Fail because we should have a closing RANGLE here (to match the opening one)
             Err(ParsingError::new("Missing '>' at end while parsing address header.".to_string()))
@@ -259,10 +259,10 @@ impl<'s> AddressParser<'s> {
             None => return Err(ParsingError::new(format!("Couldn't find local part while parsing address.")))
         };
 
-        try!(self.p.assert_char('@'));
+        r#try!(self.p.assert_char('@'));
         self.p.consume_char();
 
-        let domain = try!(self.parse_domain());
+        let domain = r#try!(self.parse_domain());
         Ok(format!("{}@{}", local_part, domain))
     }
 

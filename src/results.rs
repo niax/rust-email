@@ -17,7 +17,7 @@ impl Error for ParsingError {
         &self.desc[..]
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }

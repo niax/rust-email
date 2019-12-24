@@ -258,7 +258,7 @@ impl MimeMessage {
     // Make a message from a header map and body, parsing out any multi-part
     // messages that are discovered by looking at the Content-Type header.
     fn from_headers(headers: HeaderMap, body: String) -> ParsingResult<MimeMessage> {
-        let content_type = try!({
+        let content_type = r#try!({
             let header = headers.get("Content-Type".to_string());
             match header {
                 Some(h) => h.get_value(),

@@ -75,7 +75,7 @@ impl<'s> Rfc822DateParser<'s> {
                     "Failed to parse time: Expected hour, a number.".to_string()))
         };
 
-        try!(self.parser.assert_char(':'));
+        r#try!(self.parser.assert_char(':'));
         self.parser.consume_char();
 
         let minute = match self.consume_u32() {
@@ -175,7 +175,7 @@ impl<'s> Rfc822DateParser<'s> {
         };
 
         self.parser.consume_linear_whitespace();
-        let month = try!(self.consume_month());
+        let month = r#try!(self.consume_month());
         self.parser.consume_linear_whitespace();
 
         let year = match self.consume_u32() {
@@ -183,9 +183,9 @@ impl<'s> Rfc822DateParser<'s> {
                 // See RFC5322 4.3 for justification of obsolete year format handling.
                 match i {
                     // 2 digit year between 0 and 49 is assumed to be in the 2000s
-                    0...49 => { i + 2000 },
+                    0..=49 => { i + 2000 },
                     // 2 digit year greater than 50 and 3 digit years are added to 1900
-                    50...999 => { i + 1900 },
+                    50..=999 => { i + 1900 },
                     _ => { i },
                 }
             },
@@ -193,10 +193,10 @@ impl<'s> Rfc822DateParser<'s> {
         };
         self.parser.consume_linear_whitespace();
 
-        let time = try!(self.consume_time());
+        let time = r#try!(self.consume_time());
         self.parser.consume_linear_whitespace();
 
-        let tz_offset = try!(self.consume_timezone_offset());
+        let tz_offset = r#try!(self.consume_timezone_offset());
 
         let (hour, minute, second) = time;
 

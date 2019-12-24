@@ -23,7 +23,7 @@ trait Rfc5322Character {
 impl Rfc5322Character for char {
     fn is_ftext(&self) -> bool {
         match *self {
-            '!'...'9' | ';'...'~' => true,
+            '!'..='9' | ';'..='~' => true,
             _ => false,
         }
     }
@@ -37,7 +37,7 @@ impl Rfc5322Character for char {
 
     fn is_vchar(&self) -> bool {
         match *self {
-            '!'...'~' => true,
+            '!'..='~' => true,
             _ => false,
         }
     }
@@ -409,7 +409,7 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     /// [unstable]
     pub fn assert_char(&self, c: char) -> ParsingResult<()> {
-        try!(self.assert_not_eof());
+        r#try!(self.assert_not_eof());
 
         let actual_c = self.peek();
         if c == actual_c {
