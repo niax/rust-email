@@ -1,13 +1,10 @@
-use super::header::{
-    FromHeader,
-    ToHeader,
-};
+use super::header::{FromHeader, ToHeader};
+use super::results::{ParsingError, ParsingResult};
 use super::rfc2045::Rfc2045Parser;
 use super::rfc2047::decode_q_encoding;
-use super::results::{ParsingResult,ParsingError};
 
-use std::collections::HashMap;
 use base64;
+use std::collections::HashMap;
 
 /// Content-Type string, major/minor as the first and second elements
 /// respectively.
@@ -31,7 +28,7 @@ impl FromHeader for MimeContentTypeHeader {
         if mime_parts.len() == 2 {
             Ok(MimeContentTypeHeader {
                 content_type: (mime_parts[0].to_string(), mime_parts[1].to_string()),
-                params
+                params,
             })
         } else {
             Err(ParsingError::new(format!("Invalid mimetype: {}", value)))
@@ -51,7 +48,7 @@ impl ToHeader for MimeContentTypeHeader {
 }
 
 /// Special header type for the Content-Transfer-Encoding header.
-#[derive(Debug,PartialEq,Eq,Clone,Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MimeContentTransferEncoding {
     /// Message content is not encoded in any way.
     Identity,
@@ -68,9 +65,9 @@ pub enum MimeContentTransferEncoding {
 // Util function for MimeContentTransferEncoding::decode
 fn byte_in_base64_alphabet(b: char) -> bool {
     match b {
-        'A' ..= 'Z' => true,
-        'a' ..= 'z' => true,
-        '0' ..= '9' => true,
+        'A'..='Z' => true,
+        'a'..='z' => true,
+        '0'..='9' => true,
         '+' | '/' | '=' => true,
         _ => false,
     }
@@ -106,15 +103,15 @@ impl FromHeader for MimeContentTransferEncoding {
             "7bit" | "8bit" | "binary" => Ok(MimeContentTransferEncoding::Identity),
             "quoted-printable" => Ok(MimeContentTransferEncoding::QuotedPrintable),
             "base64" => Ok(MimeContentTransferEncoding::Base64),
-            x => Err(ParsingError::new(format!("Invalid encoding: {}", x)))
+            x => Err(ParsingError::new(format!("Invalid encoding: {}", x))),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::header::Header;
+    use super::*;
 
     use std::collections::HashMap;
 
@@ -145,9 +142,7 @@ mod tests {
                 result: Some(ContentTypeParseTestResult {
                     major_type: "text",
                     minor_type: "plain",
-                    params: vec![
-                        ("charset", "us-ascii"),
-                    ],
+                    params: vec![("charset", "us-ascii")],
                 }),
             },
             ContentTypeParseTest {
@@ -155,10 +150,7 @@ mod tests {
                 result: Some(ContentTypeParseTestResult {
                     major_type: "application",
                     minor_type: "octet-stream",
-                    params: vec![
-                        ("charset", "us-ascii"),
-                        ("param", "value"),
-                    ],
+                    params: vec![("charset", "us-ascii"), ("param", "value")],
                 }),
             },
             ContentTypeParseTest {
@@ -166,11 +158,9 @@ mod tests {
                 result: Some(ContentTypeParseTestResult {
                     major_type: "text",
                     minor_type: "plain",
-                    params: vec![
-                        ("charset", "windows-1251"),
-                    ],
+                    params: vec![("charset", "windows-1251")],
                 }),
-            }
+            },
         ];
 
         for test in tests.into_iter() {
@@ -184,10 +174,10 @@ mod tests {
                     for &(param_name, param_value) in expected_result.params.iter() {
                         expected_params.insert(param_name.to_string(), param_value.to_string());
                     }
-                    given_major == expected_result.major_type.to_string() &&
-                        given_minor == expected_result.minor_type.to_string() &&
-                        given_result.params == expected_params
-                },
+                    given_major == expected_result.major_type.to_string()
+                        && given_minor == expected_result.minor_type.to_string()
+                        && given_result.params == expected_params
+                }
                 (None, None) => true,
                 (_, _) => false,
             };
@@ -199,7 +189,10 @@ mod tests {
     fn test_content_transfer_parse() {
         let tests = vec![
             ("base64", Some(MimeContentTransferEncoding::Base64)),
-            ("quoted-printable", Some(MimeContentTransferEncoding::QuotedPrintable)),
+            (
+                "quoted-printable",
+                Some(MimeContentTransferEncoding::QuotedPrintable),
+            ),
             ("7bit", Some(MimeContentTransferEncoding::Identity)),
             ("8bit", Some(MimeContentTransferEncoding::Identity)),
             ("binary", Some(MimeContentTransferEncoding::Identity)),
@@ -234,8 +227,8 @@ mod tests {
                 encoding: MimeContentTransferEncoding::QuotedPrintable,
                 input: "foo=\r\nbar\r\nbaz",
                 output: Some(vec![
-                    102, 111, 111, 98, 97, 114, 13, 10,   // foobar
-                    98, 97, 122,                          // baz
+                    102, 111, 111, 98, 97, 114, 13, 10, // foobar
+                    98, 97, 122, // baz
                 ]),
             },
             ContentTransferDecodeTest {
@@ -243,8 +236,8 @@ mod tests {
                 input: "Zm9vCmJhcgpi\r\nYXoKcXV4Cg==",
                 output: Some(vec![
                     102, 111, 111, 10, // foo
-                    98, 97, 114, 10,   // bar
-                    98, 97, 122, 10,   // baz
+                    98, 97, 114, 10, // bar
+                    98, 97, 122, 10, // baz
                     113, 117, 120, 10, // qux
                 ]),
             },

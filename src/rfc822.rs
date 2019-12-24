@@ -1,27 +1,19 @@
 use std::collections::HashMap;
 
-use chrono::{
-    DateTime,
-    FixedOffset,
-};
 use chrono::offset::TimeZone;
+use chrono::{DateTime, FixedOffset};
 
-use super::rfc5322::Rfc5322Parser;
 use super::results::{ParsingError, ParsingResult};
+use super::rfc5322::Rfc5322Parser;
 
-static DAYS_OF_WEEK: [&str; 7] = [
-    "mon", "tue", "wed", "thu",
-    "fri", "sat", "sun",
-];
+static DAYS_OF_WEEK: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 static MONTHS: [&str; 12] = [
-    "jan", "feb", "mar", "apr",
-    "may", "jun", "jul", "aug",
-    "sep", "oct", "nov", "dec"
+    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
 ];
 
 // Lazily build TZ_DATA when we need it.
-lazy_static!{
+lazy_static! {
     static ref TZ_DATA: HashMap<&'static str, i32> = {
         let mut map = HashMap::new();
         map.insert("Z",    0); // Zulu
@@ -59,9 +51,10 @@ impl<'s> Rfc822DateParser<'s> {
     #[inline]
     fn consume_u32(&mut self) -> Option<u32> {
         match self.parser.consume_word(false) {
-            Some(s) => match s.parse() {  // FIXME
+            Some(s) => match s.parse() {
+                // FIXME
                 Ok(x) => Some(x),
-                Err(_) => None
+                Err(_) => None,
             },
             None => None,
         }
@@ -70,8 +63,11 @@ impl<'s> Rfc822DateParser<'s> {
     fn consume_time(&mut self) -> ParsingResult<(u32, u32, u32)> {
         let hour = match self.consume_u32() {
             Some(x) => x,
-            None => return Err(ParsingError::new(
-                    "Failed to parse time: Expected hour, a number.".to_string()))
+            None => {
+                return Err(ParsingError::new(
+                    "Failed to parse time: Expected hour, a number.".to_string(),
+                ))
+            }
         };
 
         self.parser.assert_char(':')?;
@@ -79,7 +75,11 @@ impl<'s> Rfc822DateParser<'s> {
 
         let minute = match self.consume_u32() {
             Some(x) => x,
-            None => return Err(ParsingError::new("Failed to parse time: Expected minute.".to_string()))
+            None => {
+                return Err(ParsingError::new(
+                    "Failed to parse time: Expected minute.".to_string(),
+                ))
+            }
         };
 
         // Seconds are optional, only try to parse if we see the next seperator.
@@ -87,9 +87,10 @@ impl<'s> Rfc822DateParser<'s> {
             Ok(_) => {
                 self.parser.consume_char();
                 self.consume_u32()
-            },
-            Err(_) => None
-        }.unwrap_or(0);
+            }
+            Err(_) => None,
+        }
+        .unwrap_or(0);
 
         Ok((hour, minute, second))
     }
@@ -111,17 +112,19 @@ impl<'s> Rfc822DateParser<'s> {
                         let offset_hours = i / 100;
                         let offset_mins = i % 100;
                         Ok(offset_hours * 3600 + offset_mins * 60)
-                    },
+                    }
                     Err(_) => {
                         // Isn't an int, so try to use the strings->TZ hash.
                         match TZ_DATA.get(s_slice) {
                             Some(offset) => Ok(*offset),
-                            None => Err(ParsingError::new(format!("Invalid timezone: {}", s_slice)))
+                            None => {
+                                Err(ParsingError::new(format!("Invalid timezone: {}", s_slice)))
+                            }
                         }
                     }
                 }
-            },
-            None => Err(ParsingError::new("Expected timezone offset.".to_string()))
+            }
+            None => Err(ParsingError::new("Expected timezone offset.".to_string())),
         }
     }
 
@@ -152,7 +155,7 @@ impl<'s> Rfc822DateParser<'s> {
             let lower_dow = day_of_week.to_ascii_lowercase();
             if DAYS_OF_WEEK.contains(&&lower_dow[..]) {
                 // Lose the ","
-                self.parser.consume_while(|c| { c == ',' || c.is_whitespace() });
+                self.parser.consume_while(|c| c == ',' || c.is_whitespace());
             } else {
                 // What we read doesn't look like a day, so ignore it,
                 // go back to the start and continue on.
@@ -165,7 +168,11 @@ impl<'s> Rfc822DateParser<'s> {
 
         let day_of_month = match self.consume_u32() {
             Some(x) => x,
-            None => return Err(ParsingError::new("Expected day of month, a number.".to_string()))
+            None => {
+                return Err(ParsingError::new(
+                    "Expected day of month, a number.".to_string(),
+                ))
+            }
         };
 
         self.parser.consume_linear_whitespace();
@@ -177,12 +184,12 @@ impl<'s> Rfc822DateParser<'s> {
                 // See RFC5322 4.3 for justification of obsolete year format handling.
                 match i {
                     // 2 digit year between 0 and 49 is assumed to be in the 2000s
-                    0..=49 => { i + 2000 },
+                    0..=49 => i + 2000,
                     // 2 digit year greater than 50 and 3 digit years are added to 1900
-                    50..=999 => { i + 1900 },
-                    _ => { i },
+                    50..=999 => i + 1900,
+                    _ => i,
                 }
-            },
+            }
             None => return Err(ParsingError::new("Expected year.".to_string())),
         };
         self.parser.consume_linear_whitespace();
@@ -194,11 +201,9 @@ impl<'s> Rfc822DateParser<'s> {
 
         let (hour, minute, second) = time;
 
-        Ok(FixedOffset::east(tz_offset).ymd(
-            year as i32, month, day_of_month
-        ).and_hms(
-            hour, minute, second
-        ))
+        Ok(FixedOffset::east(tz_offset)
+            .ymd(year as i32, month, day_of_month)
+            .and_hms(hour, minute, second))
     }
 
     fn consume_month(&mut self) -> ParsingResult<u32> {
@@ -212,10 +217,10 @@ impl<'s> Rfc822DateParser<'s> {
                     if month == &&lower_month[..] {
                         return Ok((i + 1) as u32);
                     };
-                };
+                }
                 Err(ParsingError::new(format!("Invalid month: {}", lower_month)))
-            },
-            None => Err(ParsingError::new("Expected month.".to_string()))
+            }
+            None => Err(ParsingError::new("Expected month.".to_string())),
         }
     }
 }
@@ -223,11 +228,8 @@ impl<'s> Rfc822DateParser<'s> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{
-        DateTime,
-        FixedOffset,
-    };
     use chrono::offset::TimeZone;
+    use chrono::{DateTime, FixedOffset};
 
     #[test]
     fn test_time_parse() {
@@ -237,47 +239,47 @@ mod tests {
         }
 
         let edt = FixedOffset::east(-14400); // UTC-0400
-        let cet = FixedOffset::east(3600);  // UTC+0100
+        let cet = FixedOffset::east(3600); // UTC+0100
         let napal = FixedOffset::east(20700); // UTC+0545
         let utc = FixedOffset::east(0); // UTC+0000
         let tests = vec![
             TimeParseTest {
                 input: "Mon, 20 Jun 1982 10:01:59 EDT",
-                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59))
+                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 // Check the 2 digit date parsing logic, >=50
                 input: "Mon, 20 Jun 82 10:01:59 EDT",
-                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59))
+                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 // Check the 2 digit date parsing logic, <50
                 input: "Mon, 20 Jun 02 10:01:59 EDT",
-                result: Some(edt.ymd(2002, 6, 20).and_hms(10, 1, 59))
+                result: Some(edt.ymd(2002, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 // Check the optional seconds
                 input: "Mon, 20 Jun 1982 10:01 EDT",
-                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 0))
+                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 0)),
             },
             TimeParseTest {
                 // Check different TZ parsing
                 input: "Mon, 20 Jun 1982 10:01:59 +0100",
-                result: Some(cet.ymd(1982, 6, 20).and_hms(10, 1, 59))
+                result: Some(cet.ymd(1982, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 input: "Mon, 20 Jun 1982 10:01:59 -0400",
-                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59))
+                result: Some(edt.ymd(1982, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 // Test for wierd minute offsets in TZ
                 input: "Mon, 20 Jun 1982 10:01:59 +0545",
-                result: Some(napal.ymd(1982, 6, 20).and_hms(10, 1, 59))
+                result: Some(napal.ymd(1982, 6, 20).and_hms(10, 1, 59)),
             },
             TimeParseTest {
                 // Test for being able to skip day of week
                 input: "09 Jan 2012 21:20:00 +0000",
-                result: Some(utc.ymd(2012, 1, 9).and_hms(21, 20, 00))
+                result: Some(utc.ymd(2012, 1, 9).and_hms(21, 20, 00)),
             },
         ];
 
@@ -286,5 +288,4 @@ mod tests {
             assert_eq!(parser.consume_datetime().ok(), test.result);
         }
     }
-
 }

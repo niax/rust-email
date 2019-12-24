@@ -1,19 +1,15 @@
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::slice::Iter as SliceIter;
 use std::sync::Arc;
 
-use chrono::{
-    DateTime,
-    FixedOffset,
-    Utc,
-};
+use chrono::{DateTime, FixedOffset, Utc};
 
+use super::results::{ParsingError, ParsingResult};
 use super::rfc2047::decode_rfc2047;
 use super::rfc822::Rfc822DateParser;
-use super::results::{ParsingResult,ParsingError};
 
 /// Trait for converting from RFC822 Header values into
 /// Rust types.
@@ -54,7 +50,7 @@ impl<T: ToHeader> ToFoldedHeader for T {
 
 impl FromHeader for String {
     fn from_header(value: String) -> ParsingResult<String> {
-        #[derive(Debug,Clone,Copy)]
+        #[derive(Debug, Clone, Copy)]
         enum ParseState {
             Normal(usize),
             SeenEquals(usize),
@@ -80,10 +76,10 @@ impl FromHeader for String {
                     decoded.push_str(to_push);
                     // Revert us to normal state, but starting at the next character.
                     ParseState::Normal(next_pos)
-                },
+                }
                 (ParseState::SeenQuestion(start_pos, count), '?') => {
                     ParseState::SeenQuestion(start_pos, count + 1)
-                },
+                }
                 (ParseState::SeenQuestion(start_pos, count), _) => {
                     if count > 4 {
                         // This isn't a RFC2047 sequence, so go back to a normal.
@@ -92,9 +88,7 @@ impl FromHeader for String {
                         state
                     }
                 }
-                (ParseState::SeenEquals(start_pos), '?') => {
-                    ParseState::SeenQuestion(start_pos, 1)
-                },
+                (ParseState::SeenEquals(start_pos), '?') => ParseState::SeenQuestion(start_pos, 1),
                 (ParseState::SeenEquals(start_pos), _) => {
                     // This isn't a RFC2047 sequence, so go back to a normal.
                     ParseState::Normal(start_pos)
@@ -105,7 +99,7 @@ impl FromHeader for String {
                         decoded.push_str(&value_slice[start_pos..pos]);
                     }
                     ParseState::SeenEquals(pos)
-                },
+                }
                 (ParseState::Normal(_), _) => state,
             };
         }
@@ -117,7 +111,6 @@ impl FromHeader for String {
             ParseState::SeenQuestion(start_pos, _) => start_pos,
         };
         decoded.push_str(&value_slice[last_start..]);
-
 
         Ok(decoded)
     }
@@ -169,10 +162,7 @@ impl Header {
     /// Creates a new Header for the given `name` and `value`
     /// [unstable]
     pub fn new(name: String, value: String) -> Header {
-        Header {
-            name,
-            value,
-        }
+        Header { name, value }
     }
 
     /// Creates a new Header for the given `name` and `value`,
@@ -182,7 +172,8 @@ impl Header {
     /// [unstable]
     pub fn new_with_value<T: ToFoldedHeader>(name: String, value: T) -> ParsingResult<Header> {
         let header_len = name.len() + 2;
-        ToFoldedHeader::to_folded_header(header_len, value).map(|val| { Header::new(name.clone(), val) })
+        ToFoldedHeader::to_folded_header(header_len, value)
+            .map(|val| Header::new(name.clone(), val))
     }
 
     /// Get the value represented by this header, as parsed
@@ -201,15 +192,13 @@ impl fmt::Display for Header {
 
 /// [unstable]
 pub struct HeaderIter<'s> {
-    iter: SliceIter<'s, Arc<Header>>
+    iter: SliceIter<'s, Arc<Header>>,
 }
 
 impl<'s> HeaderIter<'s> {
     /// [unstable]
     fn new(iter: SliceIter<'s, Arc<Header>>) -> HeaderIter<'s> {
-        HeaderIter {
-            iter
-        }
+        HeaderIter { iter }
     }
 }
 
@@ -226,7 +215,7 @@ impl<'s> Iterator for HeaderIter<'s> {
 
 /// A collection of Headers
 /// [unstable]
-#[derive(Eq,PartialEq,Debug,Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct HeaderMap {
     // We store headers "twice" inside the HeaderMap.
     //
@@ -256,19 +245,19 @@ impl HeaderMap {
         let rc = Arc::new(header);
         // Add to the ordered list of headers
         self.ordered_headers.push(rc.clone());
-        
+
         // and to the mapping between header names and values.
         match self.headers.entry(header_name) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().push(rc);
-            },
+            }
             Entry::Vacant(entry) => {
                 // There haven't been any headers with this name
                 // as of yet, so make a new list and push it in.
                 let mut header_list = Vec::new();
                 header_list.push(rc);
                 entry.insert(header_list);
-            },
+            }
         };
     }
 
@@ -281,8 +270,10 @@ impl HeaderMap {
     /// Get the last value of the header with `name`
     /// [unstable]
     pub fn get(&self, name: String) -> Option<&Header> {
-        self.headers.get(&name).map(|headers| { headers.last().unwrap() })
-                               .map(|rc| { rc.deref() })
+        self.headers
+            .get(&name)
+            .map(|headers| headers.last().unwrap())
+            .map(|rc| rc.deref())
     }
 
     /// Get the last value of the header with `name`, as a decoded type.
@@ -308,7 +299,8 @@ impl HeaderMap {
     /// Find a list of headers of `name`, `None` if there
     /// are no headers with that name.
     pub fn find(&self, name: &str) -> Option<Vec<&Header>> {
-        self.headers.get(name)
+        self.headers
+            .get(name)
             .map(|rcs| rcs.iter().map(|rc| rc.deref()).collect())
     }
 }
@@ -324,12 +316,8 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    use chrono::{
-        DateTime,
-        FixedOffset,
-        Utc,
-    };
     use chrono::offset::TimeZone;
+    use chrono::{DateTime, FixedOffset, Utc};
 
     static SAMPLE_HEADERS: [(&'static str, &'static str); 4] = [
         ("Test", "Value"),
@@ -339,11 +327,11 @@ mod tests {
     ];
 
     fn make_sample_headers() -> Vec<Header> {
-        SAMPLE_HEADERS.iter().map(|&(name, value)| {
-            Header::new(name.to_string(), value.to_string())
-        }).collect()
+        SAMPLE_HEADERS
+            .iter()
+            .map(|&(name, value)| Header::new(name.to_string(), value.to_string()))
+            .collect()
     }
-
 
     #[test]
     fn test_header_to_string() {
@@ -390,14 +378,23 @@ mod tests {
 
     #[test]
     fn test_datetime_get_value() {
-        let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
+        let header = Header::new(
+            "Date".to_string(),
+            "Wed, 17 Dec 2014 09:35:07 +0100".to_string(),
+        );
         let dt_value = header.get_value::<DateTime<FixedOffset>>().unwrap();
-        assert_eq!(dt_value, FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7));
+        assert_eq!(
+            dt_value,
+            FixedOffset::east(3600).ymd(2014, 12, 17).and_hms(9, 35, 7)
+        );
     }
 
     #[test]
     fn test_datetime_utc_get_value() {
-        let header = Header::new("Date".to_string(), "Wed, 17 Dec 2014 09:35:07 +0100".to_string());
+        let header = Header::new(
+            "Date".to_string(),
+            "Wed, 17 Dec 2014 09:35:07 +0100".to_string(),
+        );
         let dt_value = header.get_value::<DateTime<Utc>>().unwrap();
         assert_eq!(dt_value, Utc.ymd(2014, 12, 17).and_hms(8, 35, 7));
     }
