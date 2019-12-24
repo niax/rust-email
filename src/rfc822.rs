@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 
 use chrono::{
@@ -10,12 +9,12 @@ use chrono::offset::TimeZone;
 use super::rfc5322::Rfc5322Parser;
 use super::results::{ParsingError, ParsingResult};
 
-static DAYS_OF_WEEK: [&'static str; 7] = [
+static DAYS_OF_WEEK: [&str; 7] = [
     "mon", "tue", "wed", "thu",
     "fri", "sat", "sun",
 ];
 
-static MONTHS: [&'static str; 12] = [
+static MONTHS: [&str; 12] = [
     "jan", "feb", "mar", "apr",
     "may", "jun", "jul", "aug",
     "sep", "oct", "nov", "dec"
@@ -75,7 +74,7 @@ impl<'s> Rfc822DateParser<'s> {
                     "Failed to parse time: Expected hour, a number.".to_string()))
         };
 
-        r#try!(self.parser.assert_char(':'));
+        self.parser.assert_char(':')?;
         self.parser.consume_char();
 
         let minute = match self.consume_u32() {
@@ -101,7 +100,7 @@ impl<'s> Rfc822DateParser<'s> {
                 // from_str doesn't like leading '+' to indicate positive,
                 // so strip it off if it's there.
                 let mut s_slice = &s[..];
-                s_slice = if s_slice.starts_with("+") {
+                s_slice = if s_slice.starts_with('+') {
                     &s_slice[1..]
                 } else {
                     s_slice
@@ -116,7 +115,7 @@ impl<'s> Rfc822DateParser<'s> {
                     Err(_) => {
                         // Isn't an int, so try to use the strings->TZ hash.
                         match TZ_DATA.get(s_slice) {
-                            Some(offset) => Ok(offset.clone()),
+                            Some(offset) => Ok(*offset),
                             None => Err(ParsingError::new(format!("Invalid timezone: {}", s_slice)))
                         }
                     }
@@ -133,19 +132,14 @@ impl<'s> Rfc822DateParser<'s> {
     /// you may want something like
     ///
     /// ```
-    /// extern crate chrono;
-    /// extern crate email;
-    ///
     /// use email::rfc822::Rfc822DateParser;
     /// use chrono::Utc;
     ///
-    /// fn main() {
-    ///     let mut p = Rfc822DateParser::new("Thu, 18 Dec 2014 21:07:22 +0100");
-    ///     let d = p.consume_datetime().unwrap();
-    ///     let as_utc = d.with_timezone(&Utc);
+    /// let mut p = Rfc822DateParser::new("Thu, 18 Dec 2014 21:07:22 +0100");
+    /// let d = p.consume_datetime().unwrap();
+    /// let as_utc = d.with_timezone(&Utc);
     ///
-    ///     assert_eq!(d, as_utc);
-    /// }
+    /// assert_eq!(d, as_utc);
     /// ```
     /// [unstable]
     pub fn consume_datetime(&mut self) -> ParsingResult<DateTime<FixedOffset>> {
@@ -175,7 +169,7 @@ impl<'s> Rfc822DateParser<'s> {
         };
 
         self.parser.consume_linear_whitespace();
-        let month = r#try!(self.consume_month());
+        let month = self.consume_month()?;
         self.parser.consume_linear_whitespace();
 
         let year = match self.consume_u32() {
@@ -193,10 +187,10 @@ impl<'s> Rfc822DateParser<'s> {
         };
         self.parser.consume_linear_whitespace();
 
-        let time = r#try!(self.consume_time());
+        let time = self.consume_time()?;
         self.parser.consume_linear_whitespace();
 
-        let tz_offset = r#try!(self.consume_timezone_offset());
+        let tz_offset = self.consume_timezone_offset()?;
 
         let (hour, minute, second) = time;
 
@@ -219,10 +213,10 @@ impl<'s> Rfc822DateParser<'s> {
                         return Ok((i + 1) as u32);
                     };
                 };
-                return Err(ParsingError::new(format!("Invalid month: {}", lower_month)));
+                Err(ParsingError::new(format!("Invalid month: {}", lower_month)))
             },
-            None => return Err(ParsingError::new("Expected month.".to_string()))
-        };
+            None => Err(ParsingError::new("Expected month.".to_string()))
+        }
     }
 }
 

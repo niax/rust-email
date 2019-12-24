@@ -42,7 +42,7 @@ impl fmt::Display for Address {
             Address::Group(ref name, ref mboxes) => {
                 let mut mailbox_list = String::new();
                 for mbox in mboxes.iter() {
-                    if mailbox_list.len() > 0 {
+                    if !mailbox_list.is_empty() {
                         // Insert the separator if there's already things in this list
                         mailbox_list.push_str(", ");
                     }
@@ -68,7 +68,7 @@ impl Mailbox {
     pub fn new(address: String) -> Mailbox {
         Mailbox {
             name: None,
-            address: address
+            address
         }
     }
 
@@ -76,7 +76,7 @@ impl Mailbox {
     pub fn new_with_name(name: String, address: String) -> Mailbox {
         Mailbox {
             name: Some(name),
-            address: address
+            address
         }
     }
 }
@@ -203,13 +203,13 @@ impl<'s> AddressParser<'s> {
             None => return Err(ParsingError::new(format!("Couldn't find group name: {}", self.p.peek_to_end())))
         };
 
-        r#try!(self.p.assert_char(':'));
+        self.p.assert_char(':')?;
         self.p.consume_char();
 
         let mut mailboxes = Vec::new();
 
         while !self.p.eof() && self.p.peek() != ';' {
-            mailboxes.push(r#try!(self.parse_mailbox()));
+            mailboxes.push(self.parse_mailbox()?);
 
             if !self.p.eof() && self.p.peek() == ',' {
                 self.p.consume_char();
@@ -227,7 +227,7 @@ impl<'s> AddressParser<'s> {
             Err(_) => {
                 // Revert back to our original position to try to parse an addr-spec
                 self.p.pop_position();
-                Ok(Mailbox::new(r#try!(self.parse_addr_spec())))
+                Ok(Mailbox::new(self.parse_addr_spec()?))
             }
         }
     }
@@ -237,10 +237,10 @@ impl<'s> AddressParser<'s> {
         let display_name = self.p.consume_phrase(false);
         self.p.consume_linear_whitespace();
 
-        r#try!(self.p.assert_char('<'));
+        self.p.assert_char('<')?;
         self.p.consume_char();
 
-        let addr = r#try!(self.parse_addr_spec());
+        let addr = self.parse_addr_spec()?;
         if self.p.consume_char() != Some('>') {
             // Fail because we should have a closing RANGLE here (to match the opening one)
             Err(ParsingError::new("Missing '>' at end while parsing address header.".to_string()))
@@ -256,13 +256,13 @@ impl<'s> AddressParser<'s> {
         // local-part is a phrase, but allows dots in atoms
         let local_part = match self.p.consume_phrase(true) {
             Some(x) => x,
-            None => return Err(ParsingError::new(format!("Couldn't find local part while parsing address.")))
+            None => return Err(ParsingError::new("Couldn't find local part while parsing address.".to_owned()))
         };
 
-        r#try!(self.p.assert_char('@'));
+        self.p.assert_char('@')?;
         self.p.consume_char();
 
-        let domain = r#try!(self.parse_domain());
+        let domain = self.parse_domain()?;
         Ok(format!("{}@{}", local_part, domain))
     }
 

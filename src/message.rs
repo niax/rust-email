@@ -56,9 +56,9 @@ impl MimeMultipartType {
     }
 
     /// Returns a MimeContentType that represents this multipart type.
-    pub fn to_content_type(&self) -> MimeContentType {
+    pub fn to_content_type(self) -> MimeContentType {
         let multipart = "multipart".to_string();
-        match *self {
+        match self {
             MimeMultipartType::Mixed => (multipart, "mixed".to_string()),
             MimeMultipartType::Alternative => (multipart, "alternative".to_string()),
             MimeMultipartType::Digest => (multipart, "digest".to_string()),
@@ -148,7 +148,7 @@ impl MimeMessage {
     /// used to represent them are not automatically updated.
     /// Call this if these are changed.
     pub fn update_headers(&mut self) {
-        if self.children.len() > 0 && self.message_type.is_none() {
+        if !self.children.is_empty() && self.message_type.is_none() {
             // This should be a multipart message, so make it so!
             self.message_type = Some(MimeMultipartType::Mixed);
         }
@@ -160,7 +160,7 @@ impl MimeMessage {
             params.insert("boundary".to_string(), self.boundary.clone());
             let ct_header = MimeContentTypeHeader {
                 content_type: message_type.to_content_type(),
-                params: params
+                params
             };
             self.headers.insert(Header::new_with_value(
                 "Content-Type".to_string(),
@@ -205,7 +205,7 @@ impl MimeMessage {
     fn as_string_without_headers_internal(&self, mut builder: Rfc5322Builder) -> String {
         builder.emit_raw(&format!("{}\r\n", self.body)[..]);
 
-        if self.children.len() > 0 {
+        if !self.children.is_empty() {
 
             for part in self.children.iter() {
                 builder.emit_raw(
@@ -244,7 +244,7 @@ impl MimeMessage {
         let charset = match content_type {
             Ok(ct) => ct.params.get(&"charset".to_string()).cloned(),
             Err(_) => None,
-        }.unwrap_or("us-ascii".to_string());
+        }.unwrap_or_else(|| "us-ascii".to_string());
 
         match encoding_from_whatwg_label(&charset[..]) {
             Some(decoder) => match decoder.decode(&bytes, DecoderTrap::Replace) {
@@ -258,7 +258,7 @@ impl MimeMessage {
     // Make a message from a header map and body, parsing out any multi-part
     // messages that are discovered by looking at the Content-Type header.
     fn from_headers(headers: HeaderMap, body: String) -> ParsingResult<MimeMessage> {
-        let content_type = r#try!({
+        let content_type = {
             let header = headers.get("Content-Type".to_string());
             match header {
                 Some(h) => h.get_value(),
@@ -267,7 +267,7 @@ impl MimeMessage {
                     params: HashMap::new(),
                 })
             }
-        });
+        }?;
 
         // Pull out the major mime type and the boundary (if it exists)
         let (mime_type, sub_mime_type) = content_type.content_type;
@@ -305,7 +305,7 @@ impl MimeMessage {
 
 
     // Split `body` up on the `boundary` string.
-    fn split_boundary(body: &String, boundary: &String) -> Vec<String> {
+    fn split_boundary(body: &str, boundary: &str) -> Vec<String> {
         #[derive(Debug)]
         enum ParseState {
             Distinguished,
@@ -351,7 +351,7 @@ impl MimeMessage {
                 },
                 (ParseState::DistinguishedEnd, '\r') | (ParseState::DistinguishedEnd, '\n') => {
                     let read_boundary = body_slice[(boundary_start + 1)..(pos - 2)].trim();
-                    if &read_boundary.to_string() == boundary {
+                    if read_boundary == boundary {
                         // Boundary matches, push the part
                         // The part is from the last boundary's end to this boundary's beginning
                         let part = &body_slice[boundary_end..(boundary_start - 1)];
@@ -365,7 +365,7 @@ impl MimeMessage {
                 },
                 (ParseState::ReadBoundary, '\r') | (ParseState::ReadBoundary, '\n') => {
                     let read_boundary = body_slice[(boundary_start + 1)..pos].trim();
-                    if &read_boundary.to_string() == boundary {
+                    if read_boundary == boundary {
                         // Boundary matches, push the part
                         // The part is from the last boundary's end to this boundary's beginning
                         let part = &body_slice[boundary_end..(boundary_start - 1)];
@@ -393,7 +393,7 @@ impl MimeMessage {
         if !done {
             // Push in the final part of the message (what remains)
             let final_part = &body_slice[boundary_end..];
-            if final_part.trim().len() != 0 {
+            if !final_part.trim().is_empty() {
                 parts.push(final_part.to_string());
             }
         }

@@ -1,6 +1,5 @@
 //! Module for decoding RFC 2047 strings
 // use for to_ascii_lowercase
-use std::ascii::AsciiExt;
 use base64::decode;
 
 use encoding::label::encoding_from_whatwg_label;

@@ -6,7 +6,6 @@ use super::rfc2045::Rfc2045Parser;
 use super::rfc2047::decode_q_encoding;
 use super::results::{ParsingResult,ParsingError};
 
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use base64;
 
@@ -32,7 +31,7 @@ impl FromHeader for MimeContentTypeHeader {
         if mime_parts.len() == 2 {
             Ok(MimeContentTypeHeader {
                 content_type: (mime_parts[0].to_string(), mime_parts[1].to_string()),
-                params: params
+                params
             })
         } else {
             Err(ParsingError::new(format!("Invalid mimetype: {}", value)))
@@ -67,12 +66,12 @@ pub enum MimeContentTransferEncoding {
 }
 
 // Util function for MimeContentTransferEncoding::decode
-fn byte_in_base64_alphabet(b: u8) -> bool {
+fn byte_in_base64_alphabet(b: char) -> bool {
     match b {
-        b'A' ..= b'Z' => true,
-        b'a' ..= b'z' => true,
-        b'0' ..= b'9' => true,
-        b'+' | b'/' | b'=' => true,
+        'A' ..= 'Z' => true,
+        'a' ..= 'z' => true,
+        '0' ..= '9' => true,
+        '+' | '/' | '=' => true,
         _ => false,
     }
 }
@@ -83,15 +82,15 @@ impl MimeContentTransferEncoding {
     /// Note that this will return a clone of the input's bytes if the
     /// transfer encoding is the Identity encoding.
     /// [unstable]
-    pub fn decode(&self, input: &String) -> Option<Vec<u8>> {
-        match *self {
-            MimeContentTransferEncoding::Identity => Some(input.clone().into_bytes()),
+    pub fn decode(self, input: &str) -> Option<Vec<u8>> {
+        match self {
+            MimeContentTransferEncoding::Identity => Some(input.as_bytes().to_vec()),
             MimeContentTransferEncoding::QuotedPrintable => decode_q_encoding(&input[..]).ok(),
             MimeContentTransferEncoding::Base64 => {
                 // As per RFC 2045 section 6.8, all bytes not part of the Base64 Alphabet Table are
                 // to be ignored.
-                let mut buf = input.clone().into_bytes();
-                buf.retain(|b| byte_in_base64_alphabet(*b));
+                let mut buf = input.to_owned();
+                buf.retain(byte_in_base64_alphabet);
                 base64::decode(&buf).ok()
             }
         }

@@ -29,7 +29,7 @@ impl<'s> Rfc2045Parser<'s> {
             }
         });
 
-        if token.len() > 0 {
+        if !token.is_empty() {
             Some(token)
         } else {
             None
@@ -64,11 +64,8 @@ impl<'s> Rfc2045Parser<'s> {
                 self.consume_token()
             };
 
-            match (attribute, value) {
-                (Some(attrib), Some(val)) => {
-                    params.insert(attrib, val);
-                },
-                _ => {}
+            if let (Some(attrib), Some(val))=(attribute,value) {
+                params.insert(attrib, val);
             }
         }
 

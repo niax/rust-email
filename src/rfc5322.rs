@@ -133,7 +133,7 @@ impl<'s> Rfc5322Parser<'s> {
         // Parse field-name
         let field_name = self.consume_while(|c| { c.is_ftext() });
         self.consume_linear_whitespace();
-        if field_name.len() == 0 || self.eof() || self.peek() != ':' {
+        if field_name.is_empty() || self.eof() || self.peek() != ':' {
             // Fail to parse if we didn't see a field, we're at the end of input
             // or we haven't just seen a ":"
             self.pos = last_pos;
@@ -145,7 +145,7 @@ impl<'s> Rfc5322Parser<'s> {
             let field_value = self.consume_unstructured();
 
             // don't just panic!()
-            if self.consume_linebreak() == false { return None };
+            if !self.consume_linebreak() { return None };
 
             Some(Header::new(field_name, field_value))
         }
@@ -252,13 +252,13 @@ impl<'s> Rfc5322Parser<'s> {
                 };
 
             // Make sure we put a leading space on, if this isn't the first insertion
-            if phrase.len() > 0 {
+            if !phrase.is_empty() {
                 phrase.push_str(" ");
             }
             phrase.push_str(&decoded_word[..]);
         }
 
-        if phrase.len() > 0 {
+        if !phrase.is_empty() {
             Some(phrase)
         } else {
             None
@@ -409,7 +409,7 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     /// [unstable]
     pub fn assert_char(&self, c: char) -> ParsingResult<()> {
-        r#try!(self.assert_not_eof());
+        self.assert_not_eof()?;
 
         let actual_c = self.peek();
         if c == actual_c {
@@ -498,6 +498,12 @@ impl Rfc5322Builder {
 
        // Finally, emit everything left in the string
        self.emit_raw(&s[last_cut..]);
+    }
+}
+
+impl Default for Rfc5322Builder {
+    fn default() -> Self {
+        Rfc5322Builder::new()
     }
 }
 

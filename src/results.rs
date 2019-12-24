@@ -25,7 +25,7 @@ impl Error for ParsingError {
 impl ParsingError {
     pub fn new(desc: String) -> Self {
         ParsingError {
-            desc: desc
+            desc
         }
     }
 }
