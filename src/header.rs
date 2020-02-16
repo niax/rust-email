@@ -261,6 +261,32 @@ impl HeaderMap {
         };
     }
 
+    pub fn replace(&mut self, header: Header) {
+        let header_name = header.name.clone();
+        let rc = Arc::new(header);
+        // Remove existing
+        let mut i = 0;
+        let mut have_inserted = false;
+        while i < self.ordered_headers.len() {
+            if self.ordered_headers[i].name == header_name {
+                if have_inserted {
+                    // Just remove the header, as we've already updated
+                    self.ordered_headers.remove(i);
+                } else {
+                    // Update the header in-place
+                    self.ordered_headers[i] = rc.clone();
+                    have_inserted = true;
+                }
+            } else {
+                i += 1;
+            }
+        }
+        let mut header_list = Vec::new();
+        header_list.push(rc.clone());
+        // Straight up replace the header in the map
+        self.headers.insert(header_name, header_list);
+    }
+
     /// Get an Iterator over the collection of headers.
     /// [unstable]
     pub fn iter(&self) -> HeaderIter {

@@ -31,10 +31,20 @@ pub enum MimeMultipartType {
     ///
     /// As defined by Section 5.1.5 of RFC 2046
     Digest,
+    /// Two entries, the first of which explains the decryption process for
+    /// the second body part.
+    ///
+    /// As defined by Section 2.2 of RFC 1847
+    Encrypted,
     /// Entry order does not matter, and could be displayed simultaneously.
     ///
     /// As defined by Section 5.1.6 of RFC 2046
     Parallel,
+    /// Two entries, the first of which is the content, the second is a
+    /// digital signature of the first, including MIME headers.
+    ///
+    /// As defined by Section 2.1 of RFC 1847
+    Signed,
 }
 
 impl MimeMultipartType {
@@ -44,7 +54,9 @@ impl MimeMultipartType {
         match (&major[..], &minor[..]) {
             ("multipart", "alternative") => Some(MimeMultipartType::Alternative),
             ("multipart", "digest") => Some(MimeMultipartType::Digest),
+            ("multipart", "encrypted") => Some(MimeMultipartType::Encrypted),
             ("multipart", "parallel") => Some(MimeMultipartType::Parallel),
+            ("multipart", "signed") => Some(MimeMultipartType::Signed),
             ("multipart", "mixed") | ("multipart", _) => Some(MimeMultipartType::Mixed),
             _ => None,
         }
@@ -57,7 +69,9 @@ impl MimeMultipartType {
             MimeMultipartType::Mixed => (multipart, "mixed".to_string()),
             MimeMultipartType::Alternative => (multipart, "alternative".to_string()),
             MimeMultipartType::Digest => (multipart, "digest".to_string()),
+            MimeMultipartType::Encrypted => (multipart, "encrypted".to_string()),
             MimeMultipartType::Parallel => (multipart, "parallel".to_string()),
+            MimeMultipartType::Signed => (multipart, "signed".to_string()),
         }
     }
 }
@@ -78,6 +92,9 @@ pub struct MimeMessage {
     /// The MIME multipart message type of this message, or `None` if the message
     /// is not a multipart message.
     pub message_type: Option<MimeMultipartType>,
+
+    /// Any additional parameters of the MIME multipart header, not including the boundary.
+    pub message_type_params: Option<HashMap<String, String>>,
 
     /// The sub-messages of this message
     pub children: Vec<MimeMessage>,
@@ -133,11 +150,29 @@ impl MimeMessage {
         message
     }
 
+    pub fn new_with_boundary_and_params(
+        body: String,
+        message_type: MimeMultipartType,
+        children: Vec<MimeMessage>,
+        boundary: String,
+        message_type_params: Option<HashMap<String, String>>,
+    ) -> MimeMessage {
+        let mut message = MimeMessage::new_blank_message();
+        message.body = body;
+        message.message_type = Some(message_type);
+        message.children = children;
+        message.boundary = boundary;
+        message.message_type_params = message_type_params;
+        message.update_headers();
+        message
+    }
+
     pub fn new_blank_message() -> MimeMessage {
         MimeMessage {
             headers: HeaderMap::new(),
             body: "".to_string(),
             message_type: None,
+            message_type_params: None,
             children: Vec::new(),
 
             boundary: MimeMessage::random_boundary(),
@@ -158,14 +193,17 @@ impl MimeMessage {
         if let Some(message_type) = self.message_type {
             // We are some form of multi-part message, so update our
             // Content-Type header.
-            let mut params = HashMap::new();
+            let mut params = match &self.message_type_params {
+                Some(p) => p.clone(),
+                None => HashMap::new(),
+            };
             params.insert("boundary".to_string(), self.boundary.clone());
             let ct_header = MimeContentTypeHeader {
                 content_type: message_type.to_content_type(),
                 params,
             };
             self.headers
-                .insert(Header::new_with_value("Content-Type".to_string(), ct_header).unwrap());
+                .replace(Header::new_with_value("Content-Type".to_string(), ct_header).unwrap());
         }
     }
 
@@ -302,11 +340,22 @@ impl MimeMessage {
                 let multipart_type =
                     MimeMultipartType::from_content_type((mime_type, sub_mime_type)).unwrap();
 
-                MimeMessage::new_with_boundary(
+                // Extract any extra Content-Type parameters, but leave boundary out (we'll calculate it
+                // ourselves later, and leaving it in is confusing)
+                let mut content_type_params = content_type.params.clone();
+                content_type_params.remove(&"boundary".to_string());
+                let optional_params = if content_type_params.len() > 0 {
+                    Some(content_type_params)
+                } else {
+                    None
+                };
+
+                MimeMessage::new_with_boundary_and_params(
                     pre_body,
                     multipart_type,
                     message_parts,
                     boundary.clone(),
+                    optional_params,
                 )
             }
             _ => MimeMessage::new(body),
@@ -418,19 +467,37 @@ mod tests {
     #[derive(Debug)]
     struct MessageTestResult<'s> {
         headers: Vec<(&'s str, &'s str)>,
+        message_type_params: Vec<(&'s str, &'s str)>,
         body: &'s str,
         children: Vec<MessageTestResult<'s>>,
     }
 
     impl<'s> MessageTestResult<'s> {
-        fn matches(&self, other: &MimeMessage) -> bool {
+        fn headers(&self) -> HeaderMap {
             let mut headers = HeaderMap::new();
             for &(name, value) in self.headers.iter() {
                 let header = Header::new(name.to_string(), value.to_string());
                 headers.insert(header);
             }
 
+            headers
+        }
+
+        fn matches(&self, other: &MimeMessage) -> bool {
+            let headers = self.headers();
+
+            let message_type_params = if self.message_type_params.len() > 0 {
+                let mut params = HashMap::new();
+                for &(name, value) in self.message_type_params.iter() {
+                    params.insert(name.to_string(), value.to_string());
+                }
+                Some(params)
+            } else {
+                None
+            };
+
             let header_match = headers == other.headers;
+            let message_type_params_match = message_type_params == other.message_type_params;
             let body_match = self.body.to_string() == other.body;
 
             let mut children_match = self.children.len() == other.children.len();
@@ -447,13 +514,25 @@ mod tests {
                 println!("Children do not match!");
             }
             if !header_match {
-                println!("Headers do not match!");
+                println!(
+                    "Headers do not match! Have: {:#?} Expected: {:#?}",
+                    other.headers, headers
+                );
+            }
+            if !message_type_params_match {
+                println!(
+                    "Content-Type params do not match! Have: {:#?} Expected: {:#?}",
+                    other.message_type_params, message_type_params
+                );
             }
             if !body_match {
-                println!("Body does not match! ({} != {})", self.body, other.body);
+                println!(
+                    "Body does not match!\nHave:\n{} \nExpected:\n{}",
+                    other.body, self.body
+                );
             }
 
-            header_match && body_match && children_match
+            header_match && message_type_params_match && body_match && children_match
         }
     }
 
@@ -469,7 +548,11 @@ mod tests {
             ParseTest {
                 input: "From: joe@example.org\r\nTo: john@example.org\r\n\r\nHello!",
                 output: Some(MessageTestResult {
-                    headers: vec![("From", "joe@example.org"), ("To", "john@example.org")],
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                    ],
+                    message_type_params: vec![],
                     body: "Hello!",
                     children: vec![],
                 }),
@@ -491,15 +574,18 @@ mod tests {
                         ("To", "john@example.org"),
                         ("Content-Type", "multipart/alternative; boundary=foo"),
                     ],
+                    message_type_params: vec![],
                     body: "Parent\r\n",
                     children: vec![
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Hello!\r\n",
                             children: vec![],
                         },
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Other\r\n",
                             children: vec![],
                         },
@@ -524,15 +610,18 @@ mod tests {
                         ("To", "john@example.org"),
                         ("Content-Type", "multipart/alternative; boundary=\"foo\""),
                     ],
+                    message_type_params: vec![],
                     body: "\nParent\n",
                     children: vec![
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Hello!\n",
                             children: vec![],
                         },
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Other\n",
                             children: vec![],
                         },
@@ -562,19 +651,25 @@ mod tests {
                         ("To", "john@example.org"),
                         ("Content-Type", "multipart/mixed; boundary=foo"),
                     ],
+                    message_type_params: vec![],
                     body: "Parent\r\n",
                     children: vec![
                         MessageTestResult {
-                            headers: vec![("Content-Type", "multipart/alternative; boundary=bar")],
+                            headers: vec![
+                                ("Content-Type", "multipart/alternative; boundary=bar"),
+                            ],
+                            message_type_params: vec![],
                             body: "",
                             children: vec![
                                 MessageTestResult {
-                                    headers: vec![],
+                                    headers: vec![ ],
+                                    message_type_params: vec![],
                                     body: "Hello!\r\n",
                                     children: vec![],
                                 },
                                 MessageTestResult {
                                     headers: vec![],
+                                    message_type_params: vec![],
                                     body: "Other\r\n",
                                     children: vec![],
                                 },
@@ -582,6 +677,7 @@ mod tests {
                         },
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Outside\r\n",
                             children: vec![],
                         },
@@ -608,21 +704,66 @@ mod tests {
                         ("To", "john@example.org"),
                         ("Content-Type", "multipart/alternative; boundary=\"foo\""),
                     ],
+                    message_type_params: vec![],
                     body: "\nParent\n",
                     children: vec![
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Hello!\n",
                             children: vec![],
                         },
                         MessageTestResult {
                             headers: vec![],
+                            message_type_params: vec![],
                             body: "Other\n",
                             children: vec![],
                         },
                     ],
                 }),
                 name: "Distinguished boundary",
+            },
+            ParseTest {
+                input: "From: joe@example.org\n\
+                        To: john@example.org\n\
+                        Content-Type: multipart/encrypted; boundary=\"boundary_encrypted\"; protocol=\"application/pgp-encrypted\"\n\
+                        \n\
+                        \n\
+                        This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)\n\
+                        --boundary_encrypted\n\
+                        Content-Type: application/octet-stream; name=\"encrypted.asc\"\n\
+                        Content-Disposition: OpenPGP encrypted message\n\
+                        Content-Disposition: inline; filename=\"encrypted.asc\"\n\
+                        \n\
+                        -----BEGIN PGP MESSAGE-----\n\
+                        -----END PGP MESSAGE-----\n\
+                        \n\
+                        --boundary_encrypted--\n\
+                        \n",
+                output: Some(MessageTestResult {
+                    headers: vec![
+                        ("From", "joe@example.org"),
+                        ("To", "john@example.org"),
+                        ("Content-Type", "multipart/encrypted; boundary=\"boundary_encrypted\"; protocol=\"application/pgp-encrypted\""),
+                    ],
+                    message_type_params: vec![
+                        ("protocol", "application/pgp-encrypted"),
+                    ],
+                    body: "\nThis is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)\n",
+                    children: vec![
+                        MessageTestResult {
+                            headers: vec![
+                                ("Content-Type", "application/octet-stream; name=\"encrypted.asc\""),
+                                ("Content-Disposition", "OpenPGP encrypted message"),
+                                ("Content-Disposition", "inline; filename=\"encrypted.asc\""),
+                            ],
+                            message_type_params: vec![],
+                            body: "-----BEGIN PGP MESSAGE-----\n-----END PGP MESSAGE-----\n\n",
+                            children: vec![],
+                        },
+                    ],
+                }),
+                name: "PGP Sample Message",
             },
         ];
 

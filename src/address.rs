@@ -180,7 +180,7 @@ impl<'s> AddressParser<'s> {
                         Err(e2) => {
                             return Err(ParsingError::new(format!(
                                 "Failed to parse as group: {}\n\
-                                     Failed to parse as mailbox: {}",
+                                 Failed to parse as mailbox: {}",
                                 e, e2
                             )))
                         }
@@ -476,7 +476,7 @@ mod tests {
         assert_eq!(
             &header.to_string()[..],
             "To: \"Joe Blogs\" <joe@example.org>, \"John Doe\" <john@example.org>, \r\n\
-                   \t\"Mr Black\" <mafia_black@example.org>"
+             \t\"Mr Black\" <mafia_black@example.org>"
         );
     }
 }
