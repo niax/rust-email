@@ -1,6 +1,6 @@
 [package]
 name = "email"
-version = "0.0.20"
+version = "0.0.21"
 authors = ["Nicholas Hollett <niax@niax.co.uk>"]
 description = "Implementation of RFC 5322 email messages"
 repository = "https://github.com/niax/rust-email"
