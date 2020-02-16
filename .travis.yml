@@ -1,11 +1,12 @@
 language: rust
 rust:
-    - nightly
-    - beta
+  - stable
+  - beta
+  - nightly
 
 env:
-    global:
-        - secure: "K6TAj7O5B1JM5kHwZIjZOIb1RezvZluuVFVlE70zcCw6psohdyPcFwthKSQ5DCA//AYrfPJUwA3TO2znM2VNE+7SJNlGC490WwycL6aAtHLo526S6IS00kQnwAQOJ5kIiYI24wbkG+sMJP8l3O3sMpZzCyLwMqv4pFaXHVOehGU="
+global:
+  - secure: "K6TAj7O5B1JM5kHwZIjZOIb1RezvZluuVFVlE70zcCw6psohdyPcFwthKSQ5DCA//AYrfPJUwA3TO2znM2VNE+7SJNlGC490WwycL6aAtHLo526S6IS00kQnwAQOJ5kIiYI24wbkG+sMJP8l3O3sMpZzCyLwMqv4pFaXHVOehGU="
 
 script: sh .travis.sh script
 after_success: sh .travis.sh after_success

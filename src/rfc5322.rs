@@ -1,8 +1,8 @@
 //! Module with helpers for dealing with RFC 5322
 
 use super::header::{Header, HeaderMap};
-use super::rfc2047::decode_rfc2047;
 use super::results::{ParsingError, ParsingResult};
+use super::rfc2047::decode_rfc2047;
 
 pub const MIME_LINE_LENGTH: usize = 78;
 
@@ -14,7 +14,6 @@ trait Rfc5322Character {
     /// Is considered to be field text as defined by RFC 5322 Section 3.6.8
     fn is_ftext(&self) -> bool;
 
-
     fn is_atext(&self) -> bool {
         self.is_vchar() && !self.is_special()
     }
@@ -23,21 +22,23 @@ trait Rfc5322Character {
 impl Rfc5322Character for char {
     fn is_ftext(&self) -> bool {
         match *self {
-            '!'...'9' | ';'...'~' => true,
+            '!'..='9' | ';'..='~' => true,
             _ => false,
         }
     }
 
     fn is_special(&self) -> bool {
         match *self {
-            '(' | ')' | '<' | '>' | '[' | ']' | ':' | ';' | '@' | '\\' | ',' | '.' | '\"' | ' ' => true,
-            _ => false
+            '(' | ')' | '<' | '>' | '[' | ']' | ':' | ';' | '@' | '\\' | ',' | '.' | '\"' | ' ' => {
+                true
+            }
+            _ => false,
         }
     }
 
     fn is_vchar(&self) -> bool {
         match *self {
-            '!'...'~' => true,
+            '!'..='~' => true,
             _ => false,
         }
     }
@@ -80,7 +81,9 @@ impl<'s> Rfc5322Parser<'s> {
     /// [unstable]
     pub fn pop_position(&mut self) {
         match self.pos_stack.pop() {
-            Some(pos) => { self.pos = pos; },
+            Some(pos) => {
+                self.pos = pos;
+            }
             None => panic!("Popped position stack too far"),
         }
     }
@@ -109,9 +112,7 @@ impl<'s> Rfc5322Parser<'s> {
 
                 break;
             }
-
         }
-
 
         // Whatever remains is the body
         let body = self.s[self.pos..].to_string();
@@ -131,9 +132,9 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn consume_header(&mut self) -> Option<Header> {
         let last_pos = self.pos;
         // Parse field-name
-        let field_name = self.consume_while(|c| { c.is_ftext() });
+        let field_name = self.consume_while(|c| c.is_ftext());
         self.consume_linear_whitespace();
-        if field_name.len() == 0 || self.eof() || self.peek() != ':' {
+        if field_name.is_empty() || self.eof() || self.peek() != ':' {
             // Fail to parse if we didn't see a field, we're at the end of input
             // or we haven't just seen a ":"
             self.pos = last_pos;
@@ -145,7 +146,9 @@ impl<'s> Rfc5322Parser<'s> {
             let field_value = self.consume_unstructured();
 
             // don't just panic!()
-            if self.consume_linebreak() == false { return None };
+            if !self.consume_linebreak() {
+                return None;
+            };
 
             Some(Header::new(field_name, field_value))
         }
@@ -164,9 +167,7 @@ impl<'s> Rfc5322Parser<'s> {
                 }
             }
 
-            result.push_str(&self.consume_while(|c| {
-                c.is_vchar() || c == ' ' || c == '\t'
-            })[..])
+            result.push_str(&self.consume_while(|c| c.is_vchar() || c == ' ' || c == '\t')[..])
         }
         result
     }
@@ -235,30 +236,29 @@ impl<'s> Rfc5322Parser<'s> {
 
             let word = match self.consume_word(allow_dot_atom) {
                 Some(x) => x,
-                None => break // If it's not a word, it's no longer
-                              // in a phrase, so stop.
+                None => break, // If it's not a word, it's no longer
+                               // in a phrase, so stop.
             };
 
             let w_slice = &word[..];
             // RFC 2047 encoded words start with =?, end with ?=
-            let decoded_word =
-                if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
-                    match decode_rfc2047(w_slice) {
-                        Some(w) => w,
-                        None => w_slice.to_string(),
-                    }
-                } else {
-                    w_slice.to_string()
-                };
+            let decoded_word = if w_slice.starts_with("=?") && w_slice.ends_with("?=") {
+                match decode_rfc2047(w_slice) {
+                    Some(w) => w,
+                    None => w_slice.to_string(),
+                }
+            } else {
+                w_slice.to_string()
+            };
 
             // Make sure we put a leading space on, if this isn't the first insertion
-            if phrase.len() > 0 {
+            if !phrase.is_empty() {
                 phrase.push_str(" ");
             }
             phrase.push_str(&decoded_word[..]);
         }
 
-        if phrase.len() > 0 {
+        if !phrase.is_empty() {
             Some(phrase)
         } else {
             None
@@ -284,13 +284,13 @@ impl<'s> Rfc5322Parser<'s> {
                         // escape character and mark that we're being escaped.
                         self.consume_char();
                         inside_escape = true;
-                    },
+                    }
                     '"' if !inside_escape => {
                         // If this is a DQUOTE and we haven't seen an escape character,
                         // consume it and mark that we should break from the loop
                         self.consume_char();
                         terminated = true;
-                    },
+                    }
                     _ => {
                         // Any old character gets pushed in
                         if let Some(c) = self.consume_char() {
@@ -302,7 +302,7 @@ impl<'s> Rfc5322Parser<'s> {
                         else {
                             return None;
                         }
-                    },
+                    }
                 }
             }
 
@@ -324,16 +324,14 @@ impl<'s> Rfc5322Parser<'s> {
         if self.eof() || !self.peek().is_atext() {
             None
         } else {
-            Some(self.consume_while(|c| {
-                c.is_atext() || (allow_dot && c == '.')
-            }))
+            Some(self.consume_while(|c| c.is_atext() || (allow_dot && c == '.')))
         }
     }
 
     /// Consume LWSP (Linear whitespace)
     /// [unstable]
     pub fn consume_linear_whitespace(&mut self) {
-        self.consume_while(|c| { c == '\t' || c == ' ' });
+        self.consume_while(|c| c == '\t' || c == ' ');
     }
 
     /// Consume a single character from the input.
@@ -341,7 +339,7 @@ impl<'s> Rfc5322Parser<'s> {
     /// [unstable]
     pub fn consume_char(&mut self) -> Option<char> {
         if self.eof() {
-            return None
+            return None;
         }
         let c = self.peek();
         self.pos += c.len_utf8();
@@ -364,9 +362,12 @@ impl<'s> Rfc5322Parser<'s> {
                     self.consume_char();
                 }
                 true
-            },
+            }
             Some('\n') => true,
-            _ => { self.pos = start_pos; false }
+            _ => {
+                self.pos = start_pos;
+                false
+            }
         }
     }
 
@@ -375,7 +376,7 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn peek_linebreak(&mut self) -> bool {
         match self.peek() {
             '\r' | '\n' => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -409,13 +410,16 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     /// [unstable]
     pub fn assert_char(&self, c: char) -> ParsingResult<()> {
-        try!(self.assert_not_eof());
+        self.assert_not_eof()?;
 
         let actual_c = self.peek();
         if c == actual_c {
             Ok(())
         } else {
-            Err(ParsingError::new(format!("Expected {}, got {}", c, actual_c)))
+            Err(ParsingError::new(format!(
+                "Expected {}, got {}",
+                c, actual_c
+            )))
         }
     }
 
@@ -443,12 +447,11 @@ impl<'s> Rfc5322Parser<'s> {
     pub fn eof(&self) -> bool {
         self.pos >= self.s.len()
     }
-
 }
 
 /// Type for constructing RFC 5322 messages
 pub struct Rfc5322Builder {
-    result: String
+    result: String,
 }
 
 impl Rfc5322Builder {
@@ -468,36 +471,48 @@ impl Rfc5322Builder {
     }
 
     pub fn emit_folded(&mut self, s: &str) {
-       let mut cur_len = 0;
-       let mut last_space = 0;
-       let mut last_cut = 0;
+        let mut cur_len = 0;
+        let mut last_space = 0;
+        let mut last_cut = 0;
 
-       for (pos, c) in s.char_indices() {
-           match c {
-               ' ' => { last_space = pos; },
-               '\r' => { cur_len = 0; },
-               '\n' => { cur_len = 0; },
-               _ => {},
-           }
+        for (pos, c) in s.char_indices() {
+            match c {
+                ' ' => {
+                    last_space = pos;
+                }
+                '\r' => {
+                    cur_len = 0;
+                }
+                '\n' => {
+                    cur_len = 0;
+                }
+                _ => {}
+            }
 
-           cur_len += 1;
-           // We've reached our line length, so
-           if cur_len >= MIME_LINE_LENGTH && last_space > 0 {
-               // Emit the string from the last place we cut it to the
-               // last space that we saw
-               self.emit_raw(&s[last_cut..last_space]);
-               // ... and get us ready to put out the continuation
-               self.emit_raw("\r\n\t");
+            cur_len += 1;
+            // We've reached our line length, so
+            if cur_len >= MIME_LINE_LENGTH && last_space > 0 {
+                // Emit the string from the last place we cut it to the
+                // last space that we saw
+                self.emit_raw(&s[last_cut..last_space]);
+                // ... and get us ready to put out the continuation
+                self.emit_raw("\r\n\t");
 
-               // Reset our counters
-               cur_len = 0;
-               last_cut = last_space + s[last_space..].chars().next().unwrap().len_utf8();
-               last_space = 0;
-           }
-       }
+                // Reset our counters
+                cur_len = 0;
+                last_cut = last_space + s[last_space..].chars().next().unwrap().len_utf8();
+                last_space = 0;
+            }
+        }
 
-       // Finally, emit everything left in the string
-       self.emit_raw(&s[last_cut..]);
+        // Finally, emit everything left in the string
+        self.emit_raw(&s[last_cut..]);
+    }
+}
+
+impl Default for Rfc5322Builder {
+    fn default() -> Self {
+        Rfc5322Builder::new()
     }
 }
 
@@ -639,12 +654,18 @@ mod tests {
                     assert_eq!(body, test.body.to_string());
                     for &(header_title, header_value) in test.headers.iter() {
                         let matching_headers = headers.find(&header_title.to_string()).unwrap();
-                        assert!(matching_headers.iter().filter(|h| {
-                            let val: String = h.get_value().unwrap();
-                            val == header_value.to_string()
-                        }).count() > 0);
+                        assert!(
+                            matching_headers
+                                .iter()
+                                .filter(|h| {
+                                    let val: String = h.get_value().unwrap();
+                                    val == header_value.to_string()
+                                })
+                                .count()
+                                > 0
+                        );
                     }
-                },
+                }
                 None => panic!("Failed to parse message"),
             };
         }
@@ -676,6 +697,5 @@ mod tests {
             gen.emit_folded(test.input);
             assert_eq!(gen.result(), &test.expected.to_string());
         }
-
     }
 }

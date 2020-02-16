@@ -14,7 +14,7 @@ impl<'s> Rfc2045Parser<'s> {
     /// Create a new parser over `s`
     pub fn new(s: &str) -> Rfc2045Parser {
         Rfc2045Parser {
-            parser: Rfc5322Parser::new(s)
+            parser: Rfc5322Parser::new(s),
         }
     }
 
@@ -22,14 +22,14 @@ impl<'s> Rfc2045Parser<'s> {
         let token = self.parser.consume_while(|c| {
             match c {
                 // Not any tspecials
-                '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' |
-                    '\\' | '\"' | '/' | '[' | ']' | '?' | '=' => false,
-                '!'...'~' => true,
+                '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '\"' | '/' | '[' | ']'
+                | '?' | '=' => false,
+                '!'..='~' => true,
                 _ => false,
             }
         });
 
-        if token.len() > 0 {
+        if !token.is_empty() {
             Some(token)
         } else {
             None
@@ -39,8 +39,8 @@ impl<'s> Rfc2045Parser<'s> {
     /// Consume up to all of the input into the value and a hashmap
     /// over parameters to values.
     pub fn consume_all(&mut self) -> (String, HashMap<String, String>) {
-        let value = self.parser.consume_while(|c| { c != ';' });
- 
+        let value = self.parser.consume_while(|c| c != ';');
+
         // Find the parameters
         let mut params = HashMap::new();
         while !self.parser.eof() {
@@ -49,7 +49,9 @@ impl<'s> Rfc2045Parser<'s> {
 
             // RFC ignorant mail systems may append a ';' without a parameter after.
             // This violates the RFC but does happen, so deal with it.
-            if self.parser.eof() { break; }
+            if self.parser.eof() {
+                break;
+            }
 
             self.parser.consume_linear_whitespace();
 
@@ -64,11 +66,8 @@ impl<'s> Rfc2045Parser<'s> {
                 self.consume_token()
             };
 
-            match (attribute, value) {
-                (Some(attrib), Some(val)) => {
-                    params.insert(attrib, val);
-                },
-                _ => {}
+            if let (Some(attrib), Some(val)) = (attribute, value) {
+                params.insert(attrib, val);
             }
         }
 
@@ -96,38 +95,24 @@ mod tests {
                 output: ("foo/bar", vec![]),
                 name: "Basic value",
             },
-
             ParserTestCase {
                 input: "foo/bar; foo=bar",
-                output: ("foo/bar", vec![
-                    ("foo", "bar"),
-                ]),
+                output: ("foo/bar", vec![("foo", "bar")]),
                 name: "Basic value with parameter",
             },
-
             ParserTestCase {
                 input: "foo/bar; foo=\"bar\"",
-                output: ("foo/bar", vec![
-                    ("foo", "bar"),
-                ]),
+                output: ("foo/bar", vec![("foo", "bar")]),
                 name: "Basic value with quoted parameter",
             },
-
             ParserTestCase {
                 input: "foo/bar; foo=\"bar\"; baz=qux",
-                output: ("foo/bar", vec![
-                    ("foo", "bar"),
-                    ("baz", "qux"),
-                ]),
+                output: ("foo/bar", vec![("foo", "bar"), ("baz", "qux")]),
                 name: "Multiple values",
             },
-
             ParserTestCase {
                 input: "foo/bar; foo = \"bar\"; baz=qux",
-                output: ("foo/bar", vec![
-                    ("foo", "bar"),
-                    ("baz", "qux"),
-                ]),
+                output: ("foo/bar", vec![("foo", "bar"), ("baz", "qux")]),
                 name: "Parameter with space",
             },
         ];

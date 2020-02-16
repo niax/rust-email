@@ -1,6 +1,5 @@
 //! Module for decoding RFC 2047 strings
 // use for to_ascii_lowercase
-use std::ascii::AsciiExt;
 use base64::decode;
 
 use encoding::label::encoding_from_whatwg_label;
@@ -31,9 +30,7 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
         let decoder = encoding_from_whatwg_label(&charset[..]);
 
         match (bytes, decoder) {
-            (Ok(b), Some(d)) => {
-                d.decode(&b, DecoderTrap::Replace).ok()
-            }
+            (Ok(b), Some(d)) => d.decode(&b, DecoderTrap::Replace).ok(),
             _ => None,
         }
     }
@@ -53,27 +50,27 @@ pub fn decode_q_encoding(s: &str) -> Result<Vec<u8>, String> {
                         if char_iter.next().unwrap() == '\n' {
                             continue;
                         } else {
-                            return Err("Invalid line endings in text".to_string())
+                            return Err("Invalid line endings in text".to_string());
                         }
-                    },
+                    }
                     '\n' => continue, // treat unix line endings similar to CRLF
                     c => {
                         hex_string.push(c);
                         hex_string.push(char_iter.next().unwrap());
-                    },
+                    }
                 }
                 let hex_string_slice = &hex_string[..];
                 match u8::from_str_radix(hex_string_slice, 16) {
-                    Ok(char_val) => { result.push(char_val) },
-                    Err(e) => { return Err(format!("'{}' is not a hex number: {}", hex_string, e)) },
+                    Ok(char_val) => result.push(char_val),
+                    Err(e) => return Err(format!("'{}' is not a hex number: {}", hex_string, e)),
                 }
-            },
+            }
             Some(c) => {
                 result.push(c as u8);
-            },
+            }
             None => break,
         };
-    };
+    }
 
     Ok(result)
 }
@@ -103,16 +100,16 @@ mod tests {
     fn test_decode() {
         let tests = [
             DecodeTest {
-                input: "=?ISO-8859-1?Q?Test=20text?=", 
-                output: "Test text"
+                input: "=?ISO-8859-1?Q?Test=20text?=",
+                output: "Test text",
             },
             DecodeTest {
-                input: "=?ISO-8859-1?b?VGVzdCB0ZXh0?=", 
-                output: "Test text"
+                input: "=?ISO-8859-1?b?VGVzdCB0ZXh0?=",
+                output: "Test text",
             },
             DecodeTest {
                 input: "=?utf-8?b?44GT44KT44Gr44Gh44Gv44CC?=",
-                output: "こんにちは。"
+                output: "こんにちは。",
             },
         ];
 
@@ -136,7 +133,7 @@ mod tests {
             },
         ];
 
-        for t in tests.iter() { 
+        for t in tests.iter() {
             assert_eq!(decode_q_encoding(t.input).unwrap(), t.output.to_vec());
         }
     }

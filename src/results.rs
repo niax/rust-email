@@ -1,9 +1,9 @@
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct ParsingError {
-    desc: String,  // FIXME: Too basic
+    desc: String, // FIXME: Too basic
 }
 
 impl fmt::Display for ParsingError {
@@ -17,16 +17,14 @@ impl Error for ParsingError {
         &self.desc[..]
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }
 
 impl ParsingError {
     pub fn new(desc: String) -> Self {
-        ParsingError {
-            desc: desc
-        }
+        ParsingError { desc }
     }
 }
 
