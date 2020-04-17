@@ -2,8 +2,7 @@
 // use for to_ascii_lowercase
 use base64::decode;
 
-use encoding::label::encoding_from_whatwg_label;
-use encoding::DecoderTrap;
+use encoding::Encoding;
 
 /// Decode an RFC 2047 string (`s`) into a Rust String.
 ///
@@ -27,10 +26,13 @@ pub fn decode_rfc2047(s: &str) -> Option<String> {
 
         // XXX: Relies on WHATWG labels, rather than MIME labels for
         // charset. Consider adding mapping upstream.
-        let decoder = encoding_from_whatwg_label(&charset[..]);
+        let decoder = Encoding::for_label(charset[..].as_bytes());
 
         match (bytes, decoder) {
-            (Ok(b), Some(d)) => d.decode(&b, DecoderTrap::Replace).ok(),
+            (Ok(b), Some(d)) => {
+                let (x, ..) = d.decode(&b);
+                Some(x.into_owned())
+            },
             _ => None,
         }
     }

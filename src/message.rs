@@ -5,8 +5,7 @@ use super::rfc5322::{Rfc5322Builder, Rfc5322Parser};
 
 use std::collections::HashMap;
 
-use encoding::label::encoding_from_whatwg_label;
-use encoding::DecoderTrap;
+use encoding::Encoding;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -281,17 +280,17 @@ impl MimeMessage {
 
         let content_type: Result<MimeContentTypeHeader, _> =
             self.headers.get_value("Content-Type".to_string());
-        let charset = match content_type {
-            Ok(ct) => ct.params.get(&"charset".to_string()).cloned(),
+        let charset = match &content_type {
+            Ok(ct) => ct.params.get("charset").map(String::as_str),
             Err(_) => None,
         }
-        .unwrap_or_else(|| "us-ascii".to_string());
+        .unwrap_or_else(|| "us-ascii");
 
-        match encoding_from_whatwg_label(&charset[..]) {
-            Some(decoder) => match decoder.decode(&bytes, DecoderTrap::Replace) {
-                Ok(x) => Ok(x),
-                Err(e) => Err(ParsingError::new(format!("Unable to decode body: {}", e))),
-            },
+        match Encoding::for_label(charset.as_bytes()) {
+            Some(decoder) => {
+                let (x, ..) = decoder.decode(&bytes);
+                Ok(x.into_owned())
+            }
             None => Err(ParsingError::new(format!("Invalid encoding: {}", charset))),
         }
     }

@@ -2,7 +2,7 @@
 
 extern crate base64;
 extern crate chrono;
-extern crate encoding;
+extern crate encoding_rs as encoding;
 extern crate rand;
 
 #[macro_use]
