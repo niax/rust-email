@@ -62,7 +62,10 @@ pub struct Rfc5322Parser<'s> {
 }
 
 impl<'s> Rfc5322Parser<'s> {
-    /// Make a new parser, initialized with the given string.
+    /// Make a new parser, initialized with the given string.  
+    ///   
+    /// This will use a non RFC compliant unfolding strategy on headers.
+    /// Consider using the `new_with_unfolding_strategy` method to specify the behavior of the parser when unfolding headers.
     /// [unstable]
     pub fn new(source: &'s str) -> Rfc5322Parser<'s> {
         Rfc5322Parser {
