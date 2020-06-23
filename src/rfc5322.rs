@@ -1,6 +1,6 @@
 //! Module with helpers for dealing with RFC 5322
 
-use super::header::{Header, HeaderMap};
+use super::header::{Header, HeaderMap, UnfoldingStrategy};
 use super::results::{ParsingError, ParsingResult};
 use super::rfc2047::decode_rfc2047;
 
@@ -58,6 +58,7 @@ pub struct Rfc5322Parser<'s> {
     s: &'s str,
     pos: usize,
     pos_stack: Vec<usize>,
+    unfolding_strategy: UnfoldingStrategy,
 }
 
 impl<'s> Rfc5322Parser<'s> {
@@ -68,6 +69,18 @@ impl<'s> Rfc5322Parser<'s> {
             s: source,
             pos: 0,
             pos_stack: Vec::new(),
+            unfolding_strategy: UnfoldingStrategy::Clean,
+        }
+    }
+
+    /// Make a new parser, initialized with the given string and with a custom unfolding strategy
+    /// [unstable]
+    pub fn new_with_unfolding_strategy(source: &'s str, unfolding_strategy: UnfoldingStrategy) -> Rfc5322Parser<'s> {
+        Rfc5322Parser {
+            s: source,
+            pos: 0,
+            pos_stack: Vec::new(),
+            unfolding_strategy,
         }
     }
 
@@ -162,8 +175,9 @@ impl<'s> Rfc5322Parser<'s> {
             if self.peek_linebreak() {
                 // Check for folding whitespace, if it wasn't, then
                 // we're done parsing
-                if !self.consume_folding_whitespace() {
-                    break;
+                match self.consume_folding_whitespace() {
+                    Some(consumed) => result += &consumed,
+                    None => break,
                 }
             }
 
@@ -176,29 +190,39 @@ impl<'s> Rfc5322Parser<'s> {
     ///
     /// This is a CRLF followed by one or more whitespace character.
     ///
-    /// Returns true if whitespace was consume
+    /// Returns Some if folding whitespace has been consumed, containing data asked by the folding strategy.
     /// [unstable]
-    pub fn consume_folding_whitespace(&mut self) -> bool {
+    pub fn consume_folding_whitespace(&mut self) -> Option<String> {
         // Remember where we were, in case this isn't folding whitespace
         let current_position = self.pos;
-        let is_fws = if !self.eof() && self.consume_linebreak() {
-            match self.consume_char() {
-                Some(' ') | Some('\t') => true,
-                _ => false,
-            }
-        } else {
-            false
-        };
+        
+        if !self.eof() && self.consume_linebreak() {
+            if let Some(c) = self.consume_char() {
+                if c == ' ' || c == '\t' {
+                    // Delete CRLF and save it if asked by the unfolding strategy
+                    let mut result = if self.unfolding_strategy.delete_crlf() {
+                        String::new()
+                    } else {
+                        String::from("\r\n")
+                    };
 
-        if is_fws {
-            // This was a folding whitespace, so consume all linear whitespace
-            self.consume_linear_whitespace();
-        } else {
-            // Reset back if we didn't see a folding whitespace
-            self.pos = current_position;
+                    // This was a folding whitespace, so consume all linear whitespace
+                    let whitespaces = self.consume_linear_whitespace();
+                    
+                    // Save whitespaces if required by the unfolding strategy
+                    if !self.unfolding_strategy.delete_wsp() {
+                        result.push(c);
+                        result += &whitespaces;
+                    }
+
+                    return Some(result)
+                }
+            }
         }
 
-        is_fws
+        // Reset back if we didn't returned before
+        self.pos = current_position;
+        None
     }
 
     /// Consume a word from the input.
@@ -330,8 +354,8 @@ impl<'s> Rfc5322Parser<'s> {
 
     /// Consume LWSP (Linear whitespace)
     /// [unstable]
-    pub fn consume_linear_whitespace(&mut self) {
-        self.consume_while(|c| c == '\t' || c == ' ');
+    pub fn consume_linear_whitespace(&mut self) -> String {
+        self.consume_while(|c| c == '\t' || c == ' ')
     }
 
     /// Consume a single character from the input.
@@ -595,6 +619,7 @@ mod tests {
         input: &'s str,
         headers: Vec<(&'s str, &'s str)>,
         body: &'s str,
+        unfolding_strategy: UnfoldingStrategy,
     }
 
     #[test]
@@ -606,6 +631,7 @@ mod tests {
                     ("From", "\"Joe Blogs\" <joe@example.org>"),
                 ],
                 body: "Body",
+                unfolding_strategy: UnfoldingStrategy::Clean,
             },
             // Support parsing messages with \n instead of \r\n
             MessageTestCase {
@@ -614,6 +640,7 @@ mod tests {
                     ("From", "\"Joe Blogs\" <joe@example.org>"),
                 ],
                 body: "Body",
+                unfolding_strategy: UnfoldingStrategy::Clean,
             },
             MessageTestCase {
                 input: "From: \"Joe Blogs\" <joe@example.org>\r\n\r\nMultiline\r\nBody",
@@ -621,6 +648,7 @@ mod tests {
                     ("From", "\"Joe Blogs\" <joe@example.org>"),
                 ],
                 body: "Multiline\r\nBody",
+                unfolding_strategy: UnfoldingStrategy::Clean,
             },
             MessageTestCase {
                 input: "From: \"Joe Blogs\" <joe@example.org>\r\nTo: \"John Doe\" <john@example.org>\r\n\r\nMultiple headers",
@@ -629,6 +657,7 @@ mod tests {
                     ("To", "\"John Doe\" <john@example.org>"),
                 ],
                 body: "Multiple headers",
+                unfolding_strategy: UnfoldingStrategy::Clean,
             },
             MessageTestCase {
                 input: "Folded-Header: Some content that is \r\n\t wrapped with a tab.\r\n\r\nFolding whitespace test",
@@ -636,6 +665,7 @@ mod tests {
                     ("Folded-Header", "Some content that is wrapped with a tab."),
                 ],
                 body: "Folding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::Clean,
             },
             MessageTestCase {
                 input: "Folded-Header: Some content that is \r\n  wrapped with spaces.\r\n\r\nFolding whitespace test",
@@ -643,12 +673,46 @@ mod tests {
                     ("Folded-Header", "Some content that is wrapped with spaces."),
                 ],
                 body: "Folding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::Clean,
+            },
+            MessageTestCase {
+                input: "Folded-Header: Some content that is \r\n\t wrapped with a tab.\r\n\r\nRfc compliant folding whitespace test",
+                headers: vec![
+                    ("Folded-Header", "Some content that is \t wrapped with a tab."),
+                ],
+                body: "Rfc compliant folding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::RfcCompliant,
+            },
+            MessageTestCase {
+                input: "Folded-Header: Some content that is \r\n  wrapped with spaces.\r\n\r\nRfc compliant folding whitespace test",
+                headers: vec![
+                    ("Folded-Header", "Some content that is   wrapped with spaces."),
+                ],
+                body: "Rfc compliant folding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::RfcCompliant,
+            },
+            MessageTestCase {
+                input: "Folded-Header: Some content that is \r\n\t wrapped with a tab.\r\n\r\nNo unfolding whitespace test",
+                headers: vec![
+                    ("Folded-Header", "Some content that is \r\n\t wrapped with a tab."),
+                ],
+                body: "No unfolding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::None,
+            },
+            MessageTestCase {
+                input: "Folded-Header: Some content that is \r\n  wrapped with spaces.\r\n\r\nNo unfolding whitespace test",
+                headers: vec![
+                    ("Folded-Header", "Some content that is \r\n  wrapped with spaces."),
+                ],
+                body: "No unfolding whitespace test",
+                unfolding_strategy: UnfoldingStrategy::None,
             },
         ];
 
         for test in tests.iter() {
-            let mut p = Rfc5322Parser::new(test.input);
+            let mut p = Rfc5322Parser::new_with_unfolding_strategy(test.input, test.unfolding_strategy);
             let message = p.consume_message();
+            println!("\n{:?}", message);
             match message {
                 Some((headers, body)) => {
                     assert_eq!(body, test.body.to_string());

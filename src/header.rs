@@ -466,3 +466,28 @@ mod tests {
         assert_eq!(count, expected_headers.len());
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnfoldingStrategy {
+    None,
+    RfcCompliant,
+    Clean,
+}
+
+impl UnfoldingStrategy {
+    pub(crate) fn delete_wsp(&self) -> bool {
+        match self {
+            UnfoldingStrategy::None => false,
+            UnfoldingStrategy::RfcCompliant => false,
+            UnfoldingStrategy::Clean => true,
+        }
+    }
+
+    pub(crate) fn delete_crlf(&self) -> bool {
+        match self {
+            UnfoldingStrategy::None => false,
+            UnfoldingStrategy::RfcCompliant => true,
+            UnfoldingStrategy::Clean => true,
+        }
+    }
+}
