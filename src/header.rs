@@ -467,10 +467,16 @@ mod tests {
     }
 }
 
+/// The behavior of the parser when unfolding headers.  
+///   
+/// The default is UnfoldingStrategy::Clean for compatibility reasons with previous versions of the crate, but you should use UnfoldingStrategy::RfcCompliant.
 #[derive(Debug, Clone, Copy)]
 pub enum UnfoldingStrategy {
+    /// Keeps every CRLF and whitespace (No unfolding)
     None,
+    /// Only remove CRLF and keeps whitespaces as defined in the RFC.
     RfcCompliant,
+    /// Remove every CRLF and whitespace. Default for compatibility reasons.
     Clean,
 }
 
