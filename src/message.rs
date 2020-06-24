@@ -1,4 +1,4 @@
-use super::header::{Header, HeaderMap};
+use super::header::{Header, HeaderMap, UnfoldingStrategy};
 use super::mimeheaders::{MimeContentTransferEncoding, MimeContentType, MimeContentTypeHeader};
 use super::results::{ParsingError, ParsingResult};
 use super::rfc5322::{Rfc5322Builder, Rfc5322Parser};
@@ -207,6 +207,8 @@ impl MimeMessage {
     }
 
     /// Parse `s` into a MimeMessage.
+    /// Parse the message with a non-RFC-compliant unfolding strategy.
+    /// Use the `parse_with_unfolding_strategy` method to use a custom unfolding strategy.
     ///
     /// Recurses down into each message, supporting an unlimited depth of messages.
     ///
@@ -214,6 +216,22 @@ impl MimeMessage {
     /// [unstable]
     pub fn parse(s: &str) -> ParsingResult<MimeMessage> {
         let mut parser = Rfc5322Parser::new(s);
+        match parser.consume_message() {
+            Some((headers, body)) => MimeMessage::from_headers(headers, body),
+            None => Err(ParsingError::new(
+                "Couldn't parse MIME message.".to_string(),
+            )),
+        }
+    }
+
+    /// Parse `s` into a MimeMessage using a custom unfolding strategy.
+    ///
+    /// Recurses down into each message, supporting an unlimited depth of messages.
+    ///
+    /// Be warned that each sub-message that fails to be parsed will be thrown away.
+    /// [unstable]
+    pub fn parse_with_unfolding_strategy(s: &str, unfolding_strategy: UnfoldingStrategy) -> ParsingResult<MimeMessage> {
+        let mut parser = Rfc5322Parser::new_with_unfolding_strategy(s, unfolding_strategy);
         match parser.consume_message() {
             Some((headers, body)) => MimeMessage::from_headers(headers, body),
             None => Err(ParsingError::new(
