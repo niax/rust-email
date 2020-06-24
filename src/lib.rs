@@ -9,7 +9,7 @@ extern crate rand;
 extern crate lazy_static;
 
 pub use crate::address::{Address, Mailbox};
-pub use crate::header::{FromHeader, Header, HeaderIter, HeaderMap, ToFoldedHeader, ToHeader};
+pub use crate::header::{FromHeader, Header, HeaderIter, HeaderMap, ToFoldedHeader, ToHeader, UnfoldingStrategy};
 pub use crate::message::{MimeMessage, MimeMultipartType};
 
 mod address;
