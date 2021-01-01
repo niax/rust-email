@@ -698,4 +698,27 @@ mod tests {
             assert_eq!(gen.result(), &test.expected.to_string());
         }
     }
+
+    #[test]
+    fn test_emit_no_empty_lines() {
+        // Please don't change anything to the intendation (there is 1 tab before each line)
+        // Also note the space at the end of each line
+        let header = "To: Nnnn <nnn@ttttttttt.de>, 
+	=?utf-8?q?=F0=9F=98=80_ttttttt?= <ttttttt@rrrrrr.net>, 
+	dididididididi <t@iiiiiii.org>, Ttttttt <oooooooooo@abcd.de>, 
+	Mmmmm <mmmmm@rrrrrr.net>, Zzzzzz <rrrrrrrrrrrrr@ttttttttt.net>, 
+	Xyz <qqqqqqqqqq@rrrrrr.net>, <geug@ttttttttt.de>, qqqqqq <q@iiiiiii.org>, 
+	bbbb <bbbb@iiiiiii.org>, <fsfs@iiiiiii.org>, rqrqrqrqr <rqrqr@iiiiiii.org>, 
+	tttttttt <tttttttt@iiiiiii.org>, <tttttt@rrrrrr.net>";
+
+        let mut builder = Rfc5322Builder::new();
+
+        builder.emit_folded(&header.to_string()[..]);
+        builder.emit_raw("\r\n");
+        builder.emit_raw("\r\n");
+
+        let res = builder.result().trim();
+        println!("{}", res);
+        assert!(!res.lines().any(|l| l.trim().is_empty()));
+    }
 }
