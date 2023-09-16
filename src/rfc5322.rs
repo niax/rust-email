@@ -411,7 +411,10 @@ impl<'s> Rfc5322Parser<'s> {
     #[inline]
     /// [unstable]
     pub fn peek(&self) -> char {
-        self.s[self.pos..].chars().next().unwrap()
+        self.s[self.pos..]
+            .chars()
+            .next()
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
     }
 
     /// Check that `!self.eof() && self.peek() == c`
