@@ -167,7 +167,15 @@ impl<'s> Rfc5322Parser<'s> {
                 }
             }
 
-            result.push_str(&self.consume_while(|c| c.is_vchar() || c == ' ' || c == '\t')[..])
+            let fragment = &self.consume_while(|c| c.is_vchar() || c == ' ' || c == '\t')[..];
+
+            if fragment.is_empty() {
+                // If the text no longer matches the expected format, then we
+                // should stop.
+                break;
+            }
+
+            result.push_str(fragment);
         }
         result
     }
