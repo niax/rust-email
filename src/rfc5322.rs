@@ -482,48 +482,25 @@ impl Rfc5322Builder {
     }
 
     pub fn emit_folded(&mut self, s: &str) {
-        let mut cur_len = 0;
-        let mut last_space = 0;
-        let mut last_cut = 0;
-
-        for (pos, c) in s.char_indices() {
-            match c {
-                ' ' => {
-                    last_space = pos;
-                }
-                '\r' => {
-                    cur_len = 0;
-                }
-                '\n' => {
-                    cur_len = 0;
-                }
-                _ => {}
-            }
-
-            cur_len += 1;
-            // We've reached our line length, so
-            if cur_len >= MIME_LINE_LENGTH && last_space > 0 {
-                // Emit the string from the last place we cut it to the
-                // last space that we saw
-                self.emit_raw(&s[last_cut..last_space]);
-                // ... and get us ready to put out the continuation
+        let words = s.split_whitespace();
+        let mut current = String::new();
+        
+        for word in words {
+            if current.len() + 1 + word.len() > MIME_LINE_LENGTH && !current.is_empty() {
+                // The current word doesn't fit into the next line anymore
+                // The "+ 1" is for the space (" ") before the next word
+                self.emit_raw(&current);
                 self.emit_raw("\r\n\t");
-
-                // Reset our counters
-                cur_len = 0;
-                last_cut = last_space + s[last_space..].chars().next().unwrap().len_utf8();
-                last_space = 0;
+                current = word.to_owned();
+            } else {
+                if !current.is_empty() {
+                    current += " "; // Separate the existing line and the new word with a space
+                }
+                current += word;
             }
         }
-
         // Finally, emit everything left in the string
-        self.emit_raw(&s[last_cut..]);
-    }
-}
-
-impl Default for Rfc5322Builder {
-    fn default() -> Self {
-        Rfc5322Builder::new()
+        self.emit_raw(&current);
     }
 }
 
@@ -708,5 +685,28 @@ mod tests {
             gen.emit_folded(test.input);
             assert_eq!(gen.result(), &test.expected.to_string());
         }
+    }
+
+    #[test]
+    fn test_emit_no_empty_lines() {
+        // Please don't change anything to the intendation (there is 1 tab before each line)
+        // Also note the space at the end of each line
+        let header = "To: Nnnn <nnn@ttttttttt.de>, 
+	=?utf-8?q?=F0=9F=98=80_ttttttt?= <ttttttt@rrrrrr.net>, 
+	dididididididi <t@iiiiiii.org>, Ttttttt <oooooooooo@abcd.de>, 
+	Mmmmm <mmmmm@rrrrrr.net>, Zzzzzz <rrrrrrrrrrrrr@ttttttttt.net>, 
+	Xyz <qqqqqqqqqq@rrrrrr.net>, <geug@ttttttttt.de>, qqqqqq <q@iiiiiii.org>, 
+	bbbb <bbbb@iiiiiii.org>, <fsfs@iiiiiii.org>, rqrqrqrqr <rqrqr@iiiiiii.org>, 
+	tttttttt <tttttttt@iiiiiii.org>, <tttttt@rrrrrr.net>";
+
+        let mut builder = Rfc5322Builder::new();
+
+        builder.emit_folded(&header.to_string()[..]);
+        builder.emit_raw("\r\n");
+        builder.emit_raw("\r\n");
+
+        let res = builder.result().trim();
+        println!("{}", res);
+        assert!(!res.lines().any(|l| l.trim().is_empty()));
     }
 }
